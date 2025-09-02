@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Z1 Bartender
-Mix cocktails with flair and precision
+Z1 Professional Bartender
+Realistic bartender that picks up bottles and tools from table to mix cocktails
 """
 import rospy, math, time, random, argparse
 from unitree_legged_msgs.msg import MotorCmd
@@ -23,30 +23,64 @@ class Z1Bartender:
         
         self.rate = rospy.Rate(50)
         
-        # Bar positions
-        self.bar_positions = {
-            "bottle_shelf": [0.5, -0.1, 0.4, 0.0, -0.3, 0.0, 0.8],
-            "shaker_grab": [0.0, -0.3, 0.8, 0.0, -0.5, 0.0, 0.8],
-            "mixing_high": [0.0, 0.2, 0.5, 0.0, 0.3, 0.0, 0.3],
-            "mixing_low": [0.0, -0.4, 1.0, 0.0, -0.6, 0.0, 0.3],
-            "pour_position": [-0.3, -0.2, 0.6, -0.5, -0.4, 0.0, 0.3],
-            "garnish_station": [0.4, -0.2, 0.7, 0.0, -0.5, 0.0, 0.5],
-            "serve_position": [0.0, -0.1, 0.3, 0.0, -0.2, 0.0, 0.8]
+        # Table positions for bottles and tools (realistic bar setup)
+        self.table_positions = {
+            # Bottles on table (left to right)
+            "gin_bottle": [-0.4, -0.3, 1.0, 0.0, -0.7, 0.0, 0.8],
+            "vodka_bottle": [-0.2, -0.3, 1.0, 0.0, -0.7, 0.0, 0.8], 
+            "rum_bottle": [0.0, -0.3, 1.0, 0.0, -0.7, 0.0, 0.8],
+            "tequila_bottle": [0.2, -0.3, 1.0, 0.0, -0.7, 0.0, 0.8],
+            "whiskey_bottle": [0.4, -0.3, 1.0, 0.0, -0.7, 0.0, 0.8],
+            
+            # Bar tools
+            "shaker": [-0.3, -0.2, 0.8, 0.0, -0.6, 0.0, 0.8],
+            "jigger": [-0.1, -0.2, 0.8, 0.0, -0.6, 0.0, 0.8],
+            "strainer": [0.1, -0.2, 0.8, 0.0, -0.6, 0.0, 0.8],
+            "muddler": [0.3, -0.2, 0.8, 0.0, -0.6, 0.0, 0.8],
+            
+            # Garnish tray
+            "lime_wedge": [-0.4, -0.1, 0.6, 0.0, -0.5, 0.0, 0.8],
+            "lemon_twist": [-0.2, -0.1, 0.6, 0.0, -0.5, 0.0, 0.8],
+            "olive": [0.0, -0.1, 0.6, 0.0, -0.5, 0.0, 0.8],
+            "mint_sprig": [0.2, -0.1, 0.6, 0.0, -0.5, 0.0, 0.8],
+            
+            # Glass positions
+            "mixing_glass": [0.0, -0.4, 1.2, 0.0, -0.8, 0.0, 0.8],
+            "serving_glass": [0.0, -0.1, 0.4, 0.0, -0.3, 0.0, 0.8],
+            
+            # Working positions
+            "shake_high": [0.0, 0.3, 0.4, 0.0, 0.4, 0.0, 0.2],
+            "shake_low": [0.0, -0.5, 1.2, 0.0, -0.8, 0.0, 0.2],
+            "pour_over_glass": [0.0, -0.2, 0.6, -0.3, -0.4, 0.0, 0.2]
         }
         
-        # Cocktail recipes
-        self.cocktails = {
-            "martini": ["gin", "vermouth", "olive"],
-            "mojito": ["rum", "mint", "lime", "soda"],
-            "margarita": ["tequila", "lime", "salt"],
-            "old_fashioned": ["whiskey", "sugar", "bitters", "orange"]
+        # Cocktail recipes with actual table items
+        self.cocktail_recipes = {
+            "martini": {
+                "base": "gin_bottle",
+                "tools": ["jigger", "shaker", "strainer"],
+                "garnish": "olive",
+                "method": "shake"
+            },
+            "old_fashioned": {
+                "base": "whiskey_bottle", 
+                "tools": ["jigger", "muddler"],
+                "garnish": "lemon_twist",
+                "method": "stir"
+            },
+            "mojito": {
+                "base": "rum_bottle",
+                "tools": ["muddler", "jigger"],
+                "garnish": "mint_sprig",
+                "method": "muddle"
+            }
         }
     
     def send_pose(self, pose_name_or_positions, duration=2.0):
         """Move to pose smoothly"""
         if isinstance(pose_name_or_positions, str):
-            if pose_name_or_positions in self.bar_positions:
-                target = self.bar_positions[pose_name_or_positions]
+            if pose_name_or_positions in self.table_positions:
+                target = self.table_positions[pose_name_or_positions]
             else:
                 rospy.logerr(f"Unknown position: {pose_name_or_positions}")
                 return
@@ -78,193 +112,264 @@ class Z1Bartender:
             
             self.rate.sleep()
     
-    def grab_bottle(self, bottle_name):
-        """Grab a bottle from the shelf"""
-        rospy.loginfo(f"🍾 Grabbing {bottle_name} bottle...")
+    def pick_up_item(self, item_name):
+        """Pick up an item from the table"""
+        rospy.loginfo(f"🤏 Picking up {item_name.replace('_', ' ')}...")
         
-        # Reach for bottle
-        self.send_pose("bottle_shelf", 2.0)
+        if item_name not in self.table_positions:
+            rospy.logerr(f"Item {item_name} not found on table!")
+            return False
         
-        # Close gripper on bottle
-        grab_pose = self.bar_positions["bottle_shelf"].copy()
-        grab_pose[6] = 0.2  # Close grip
-        self.send_pose(grab_pose, 0.5)
+        # Approach item position
+        approach_pos = self.table_positions[item_name].copy()
+        approach_pos[1] += 0.1  # Slightly above item
+        approach_pos[6] = 0.8   # Open gripper
+        self.send_pose(approach_pos, 2.0)
         
-        # Lift bottle with flair
-        lift_pose = grab_pose.copy()
-        lift_pose[1] += 0.3  # Lift up
-        self.send_pose(lift_pose, 1.0)
+        # Lower to item
+        grab_pos = self.table_positions[item_name].copy()
+        grab_pos[6] = 0.8  # Still open
+        self.send_pose(grab_pos, 1.0)
+        
+        # Close gripper to grab
+        grab_pos[6] = 0.2  # Close grip
+        self.send_pose(grab_pos, 0.5)
+        rospy.loginfo(f"✅ Grabbed {item_name.replace('_', ' ')}")
+        
+        # Lift item
+        lift_pos = grab_pos.copy()
+        lift_pos[1] += 0.2  # Lift up
+        self.send_pose(lift_pos, 1.0)
+        
+        return True
     
     def bottle_flip(self):
         """Perform a flashy bottle flip"""
         rospy.loginfo("🤹 Performing bottle flip!")
         
         # Quick wrist flips
-        for _ in range(3):
+        for _ in range(2):
             flip_up = [0.0, 0.0, 0.6, 0.0, 0.8, 1.2, 0.2]
             flip_down = [0.0, 0.0, 0.6, 0.0, -0.8, -1.2, 0.2]
             
-            self.send_pose(flip_up, 0.3)
-            self.send_pose(flip_down, 0.3)
+            self.send_pose(flip_up, 0.4)
+            self.send_pose(flip_down, 0.4)
         
         # Catch in normal position
         self.send_pose([0.0, -0.1, 0.5, 0.0, -0.4, 0.0, 0.2], 1.0)
     
-    def pour_ingredient(self, ingredient, duration=2.0):
-        """Pour ingredient with style"""
-        rospy.loginfo(f"🥃 Pouring {ingredient}...")
+    def pour_into_glass(self, duration=2.0):
+        """Pour from held bottle into mixing glass"""
+        rospy.loginfo("🥃 Pouring into glass...")
         
-        # Move to pour position
-        self.send_pose("pour_position", 1.5)
+        # Move to pour position over glass
+        self.send_pose("pour_over_glass", 1.5)
         
-        # Pouring motion with wrist rotation
+        # Pouring motion with wrist tilt
         start_time = time.time()
-        base_pose = self.bar_positions["pour_position"]
+        base_pose = self.table_positions["pour_over_glass"]
         
         while time.time() - start_time < duration:
             t = time.time() - start_time
+            progress = t / duration
             
-            # Gentle pouring motion
-            pour_angle = 0.3 * math.sin(t * 2)  # Gentle tilt
+            # Gradual tilt for pouring
+            pour_angle = 0.4 * progress  # Increase tilt over time
             
             pour_pose = base_pose.copy()
             pour_pose[4] += pour_angle  # Wrist tilt for pouring
-            pour_pose[5] = 0.1 * math.sin(t * 4)  # Slight wrist roll
             
             self.send_pose(pour_pose, 0.1)
         
         # Return bottle upright
         self.send_pose(base_pose, 0.5)
+        rospy.loginfo("✅ Poured successfully")
     
-    def shake_cocktail(self, intensity=3):
-        """Shake cocktail with rhythm"""
+    def shake_with_shaker(self, intensity=3):
+        """Shake cocktail using the shaker from table"""
         rospy.loginfo(f"🍸 Shaking cocktail with intensity {intensity}!")
         
-        # Grab shaker
-        self.send_pose("shaker_grab", 2.0)
-        
-        # Close grip on shaker
-        shake_pose = self.bar_positions["shaker_grab"].copy()
-        shake_pose[6] = 0.1  # Firm grip
-        self.send_pose(shake_pose, 0.5)
-        
-        # Rhythmic shaking motion
+        # Rhythmic shaking motion (shaker already in hand)
         for shake_round in range(intensity):
             rospy.loginfo(f"Shake round {shake_round + 1}")
             
             # Fast up-down shaking
-            for _ in range(8):
+            for _ in range(6):
                 # Up position
-                self.send_pose("mixing_high", 0.2)
+                self.send_pose("shake_high", 0.25)
                 # Down position  
-                self.send_pose("mixing_low", 0.2)
+                self.send_pose("shake_low", 0.25)
             
             # Brief pause between rounds
-            time.sleep(0.3)
+            time.sleep(0.2)
         
         # Final flourish
-        self.send_pose("mixing_high", 1.0)
+        self.send_pose("shake_high", 1.0)
         rospy.loginfo("🎵 Shaking complete - perfect mix achieved!")
     
-    def add_garnish(self, garnish):
-        """Add garnish with precision"""
-        rospy.loginfo(f"🍋 Adding {garnish} garnish...")
+    def place_item_down(self, target_position="serving_glass"):
+        """Place held item down at target position"""
+        rospy.loginfo(f"📍 Placing item at {target_position.replace('_', ' ')}...")
         
-        # Move to garnish station
-        self.send_pose("garnish_station", 2.0)
+        # Move to target position
+        place_pos = self.table_positions[target_position].copy()
+        place_pos[1] += 0.1  # Slightly above target
+        self.send_pose(place_pos, 2.0)
         
-        # Pick up garnish
-        garnish_pose = self.bar_positions["garnish_station"].copy()
-        garnish_pose[6] = 0.3  # Delicate grip
-        self.send_pose(garnish_pose, 1.0)
+        # Lower to place
+        place_pos[1] -= 0.1  # Down to surface
+        self.send_pose(place_pos, 1.0)
         
-        # Precise placement motion
-        place_garnish = [0.0, -0.1, 0.4, 0.0, -0.3, 0.0, 0.3]
-        self.send_pose(place_garnish, 2.0)
+        # Release item
+        place_pos[6] = 0.8  # Open gripper
+        self.send_pose(place_pos, 0.5)
         
-        # Release garnish
-        place_garnish[6] = 0.8
-        self.send_pose(place_garnish, 0.5)
+        # Move away
+        place_pos[1] += 0.1  # Lift up
+        self.send_pose(place_pos, 1.0)
+        
+        rospy.loginfo("✅ Item placed successfully")
     
-    def serve_drink(self):
+    def present_cocktail(self):
         """Present the finished cocktail"""
         rospy.loginfo("🍹 Presenting your cocktail!")
         
-        # Move to serve position
-        self.send_pose("serve_position", 2.0)
+        # Pick up finished drink
+        self.pick_up_item("serving_glass")
         
         # Elegant presentation gesture
-        for _ in range(2):
-            present_high = [0.0, 0.1, 0.2, 0.0, 0.0, 0.0, 0.8]
-            self.send_pose(present_high, 1.0)
-            self.send_pose("serve_position", 1.0)
+        present_pose = [0.0, 0.2, 0.3, 0.0, 0.1, 0.0, 0.2]
+        self.send_pose(present_pose, 2.0)
         
-        # Bow gesture
-        bow_pose = [0.0, -0.5, 1.2, 0.0, -0.7, 0.0, 0.8]
-        self.send_pose(bow_pose, 1.5)
-        self.send_pose("serve_position", 1.5)
+        # Hold for admiration
+        time.sleep(2.0)
+        
+        # Place back down
+        self.place_item_down("serving_glass")
+        
+        # Bartender bow
+        bow_pose = [0.0, -0.6, 1.4, 0.0, -0.8, 0.0, 0.0]
+        self.send_pose(bow_pose, 2.0)
+        
+        # Return to neutral
+        self.send_pose([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8], 2.0)
     
     def mix_cocktail(self, cocktail_name):
-        """Mix a complete cocktail"""
-        if cocktail_name not in self.cocktails:
+        """Mix a complete cocktail using items from table"""
+        if cocktail_name not in self.cocktail_recipes:
             rospy.logerr(f"Unknown cocktail: {cocktail_name}")
             return
         
-        ingredients = self.cocktails[cocktail_name]
-        rospy.loginfo(f"🍸 Mixing {cocktail_name.title()} with {len(ingredients)} ingredients")
+        recipe = self.cocktail_recipes[cocktail_name]
+        rospy.loginfo(f"🍸 Mixing {cocktail_name.title()} - professional bartender style!")
         
-        # Prepare workspace
-        rospy.loginfo("🧹 Preparing bar workspace...")
-        self.send_pose([0.0, -0.3, 0.8, 0.0, -0.5, 0.0, 0.8], 2.0)
+        # Step 1: Prepare mixing glass
+        rospy.loginfo("🥃 Preparing mixing glass...")
+        self.pick_up_item("mixing_glass")
+        self.place_item_down("mixing_glass")  # Ensure it's in position
         
-        # Add each ingredient
-        for i, ingredient in enumerate(ingredients[:-1]):  # Save garnish for last
-            self.grab_bottle(ingredient)
+        # Step 2: Get the base spirit
+        rospy.loginfo(f"🍾 Getting {recipe['base'].replace('_', ' ')}...")
+        self.pick_up_item(recipe['base'])
+        
+        # Add some flair for premium spirits
+        if "whiskey" in recipe['base'] or "gin" in recipe['base']:
+            self.bottle_flip()
+        
+        # Pour base spirit
+        self.pour_into_glass(duration=2.0)
+        self.place_item_down(recipe['base'])  # Put bottle back
+        
+        # Step 3: Use appropriate method
+        if recipe['method'] == 'shake':
+            rospy.loginfo("🥤 Time to shake!")
+            self.pick_up_item("shaker")
+            self.shake_with_shaker(intensity=3)
+            self.place_item_down("shaker")
             
-            # Add some flair for premium ingredients
-            if ingredient in ["gin", "whiskey", "tequila"]:
-                self.bottle_flip()
+        elif recipe['method'] == 'muddle':
+            rospy.loginfo("🌿 Muddling ingredients...")
+            self.pick_up_item("muddler")
             
-            self.pour_ingredient(ingredient, duration=1.5 + i * 0.5)
+            # Muddling motion in glass
+            muddle_pos = self.table_positions["mixing_glass"].copy()
+            for _ in range(6):
+                muddle_pos[1] -= 0.05  # Press down
+                self.send_pose(muddle_pos, 0.3)
+                muddle_pos[1] += 0.05  # Lift up
+                self.send_pose(muddle_pos, 0.3)
             
-            # Return bottle
-            self.send_pose("bottle_shelf", 1.5)
-            time.sleep(0.5)
+            self.place_item_down("muddler")
+            
+        elif recipe['method'] == 'stir':
+            rospy.loginfo("🥄 Stirring with precision...")
+            # Stirring motion over glass
+            stir_pos = self.table_positions["mixing_glass"].copy()
+            stir_pos[1] += 0.05  # Slightly above glass
+            
+            for _ in range(8):
+                # Circular stirring motion
+                for angle in [0, 90, 180, 270]:
+                    stir_pos[0] = 0.05 * math.cos(math.radians(angle))
+                    stir_pos[5] = 0.1 * math.sin(math.radians(angle))
+                    self.send_pose(stir_pos, 0.2)
         
-        # Shake if needed
-        if cocktail_name in ["martini", "margarita"]:
-            self.shake_cocktail(intensity=3)
-        elif cocktail_name == "mojito":
-            rospy.loginfo("🌿 Muddling mint leaves...")
-            # Muddling motion
-            for _ in range(5):
-                muddle_down = [0.0, -0.4, 1.2, 0.0, -0.8, 0.0, 0.1]
-                muddle_up = [0.0, -0.2, 0.8, 0.0, -0.6, 0.0, 0.1]
-                self.send_pose(muddle_down, 0.3)
-                self.send_pose(muddle_up, 0.3)
+        # Step 4: Transfer to serving glass
+        rospy.loginfo("🍸 Transferring to serving glass...")
+        self.pick_up_item("mixing_glass")
         
-        # Add garnish
-        if len(ingredients) > 0:
-            self.add_garnish(ingredients[-1])
+        # Pour into serving glass
+        serve_pour_pos = self.table_positions["serving_glass"].copy()
+        serve_pour_pos[1] += 0.1  # Above serving glass
+        serve_pour_pos[4] = -0.3  # Tilt for pouring
+        self.send_pose(serve_pour_pos, 2.0)
         
-        # Serve with style
-        self.serve_drink()
+        # Pour motion
+        time.sleep(2.0)
         
-        rospy.loginfo(f"✨ {cocktail_name.title()} is ready! Enjoy responsibly! 🍻")
+        # Return mixing glass
+        self.place_item_down("mixing_glass")
+        
+        # Step 5: Add garnish
+        rospy.loginfo(f"🍋 Adding {recipe['garnish'].replace('_', ' ')} garnish...")
+        self.pick_up_item(recipe['garnish'])
+        
+        # Place garnish on drink
+        garnish_pos = self.table_positions["serving_glass"].copy()
+        garnish_pos[1] += 0.05  # Just above glass
+        self.send_pose(garnish_pos, 1.5)
+        
+        # Drop garnish
+        garnish_pos[6] = 0.8  # Open gripper
+        self.send_pose(garnish_pos, 0.5)
+        
+        # Step 6: Present the masterpiece
+        self.present_cocktail()
+        
+        rospy.loginfo(f"✨ {cocktail_name.title()} is ready! Crafted with precision! 🍻")
     
     def bartender_show(self):
-        """Full bartender performance"""
-        cocktails_to_make = ["martini", "mojito", "margarita"]
+        """Full bartender performance with table setup"""
+        cocktails_to_make = ["old_fashioned", "martini", "mojito"]
         
-        rospy.loginfo("🎭 Welcome to Z1's Cocktail Show!")
+        rospy.loginfo("🎭 Welcome to Z1's Professional Bar!")
+        rospy.loginfo("📋 Table Setup: Bottles, tools, and garnishes are ready")
         
-        for cocktail in cocktails_to_make:
-            rospy.loginfo(f"\\n🎪 Now featuring: {cocktail.title()}!")
+        # Bartender introduction
+        intro_pose = [0.0, 0.1, 0.4, 0.0, 0.2, 0.0, 0.8]
+        self.send_pose(intro_pose, 2.0)
+        
+        for i, cocktail in enumerate(cocktails_to_make):
+            rospy.loginfo(f"\\n🎪 Cocktail #{i+1}: {cocktail.title().replace('_', ' ')}!")
             self.mix_cocktail(cocktail)
-            time.sleep(2.0)
+            
+            if i < len(cocktails_to_make) - 1:
+                rospy.loginfo("🧹 Cleaning workspace for next cocktail...")
+                time.sleep(2.0)
         
         # Final bow
-        rospy.loginfo("🎉 Thank you for visiting Z1's Bar!")
+        rospy.loginfo("🎉 Thank you for visiting Z1's Professional Bar!")
+        rospy.loginfo("🍻 All cocktails crafted with precision and flair!")
         final_bow = [0.0, -0.8, 1.5, 0.0, -0.7, 0.0, 0.0]
         self.send_pose(final_bow, 3.0)
     
@@ -274,13 +379,40 @@ class Z1Bartender:
         self.send_pose([0.0] * 7, 3.0)
 
 def main():
-    parser = argparse.ArgumentParser(description="Z1 Master Bartender")
+    parser = argparse.ArgumentParser(description="Z1 Professional Bartender")
     parser.add_argument("--mode", type=int, default=10)
     parser.add_argument("--kp", type=float, default=35.0)
     parser.add_argument("--kd", type=float, default=1.5)
-    parser.add_argument("--cocktail", choices=["martini", "mojito", "margarita", "old_fashioned", "show"],
+    parser.add_argument("--cocktail", choices=["martini", "mojito", "old_fashioned", "show"],
                        default="show", help="Cocktail to make or full show")
+    parser.add_argument("--setup", action="store_true", help="Show table setup instructions")
     args = parser.parse_args()
+    
+    if args.setup:
+        print("🍸 Z1 Bartender Table Setup Instructions:")
+        print("==========================================")
+        print("📍 Place items on table in front of Z1:")
+        print("\\n🍾 Bottles (left to right):")
+        print("  - Gin bottle (left side)")
+        print("  - Vodka bottle")
+        print("  - Rum bottle (center)")
+        print("  - Tequila bottle")
+        print("  - Whiskey bottle (right side)")
+        print("\\n🛠️ Bar Tools (middle row):")
+        print("  - Cocktail shaker")
+        print("  - Jigger (measuring cup)")
+        print("  - Strainer")
+        print("  - Muddler")
+        print("\\n🍋 Garnishes (front row):")
+        print("  - Lime wedges")
+        print("  - Lemon twists")
+        print("  - Olives")
+        print("  - Mint sprigs")
+        print("\\n🥃 Glasses:")
+        print("  - Mixing glass (center back)")
+        print("  - Serving glass (center front)")
+        print("\\n✨ Ready to bartend!")
+        return
     
     try:
         bartender = Z1Bartender(args.mode, args.kp, args.kd)
