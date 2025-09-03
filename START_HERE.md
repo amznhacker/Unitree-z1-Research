@@ -22,7 +22,7 @@ chmod +x setup_and_run.sh
 
 **Keyboard:**
 - WASD = Base/Shoulder
-- QE = Elbow
+- ZE = Elbow
 - RF = Forearm roll
 - TG = Wrist pitch
 - YH = Wrist roll

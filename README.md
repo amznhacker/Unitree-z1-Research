@@ -48,7 +48,7 @@ If you prefer step-by-step setup, see [SETUP_UBUNTU_20.04.md](SETUP_UBUNTU_20.04
 
 - **W/S**: Shoulder pitch up/down
 - **A/D**: Base rotate left/right  
-- **Q/E**: Elbow bend/extend
+- **Z/E**: Elbow bend/extend
 - **R/F**: Forearm roll
 - **T/G**: Wrist pitch
 - **Y/H**: Wrist roll

@@ -98,7 +98,7 @@ class SimpleZ1Control:
                 elif char == 'd':  # Base right
                     self.move_joint("Joint01", -self.step_size)
                 
-                elif char == 'q':  # Elbow bend
+                elif char == 'z':  # Elbow bend (changed from q to avoid quit conflict)
                     self.move_joint("Joint03", self.step_size)
                 elif char == 'e':  # Elbow extend
                     self.move_joint("Joint03", -self.step_size)
@@ -131,7 +131,7 @@ class SimpleZ1Control:
         print("Z1 Simple Control Started")
         print("Controls:")
         print("  WASD = Base/Shoulder movement")
-        print("  QE   = Elbow bend/extend")
+        print("  ZE   = Elbow bend/extend")
         print("  RF   = Forearm roll")
         print("  TG   = Wrist pitch")
         print("  YH   = Wrist roll")
