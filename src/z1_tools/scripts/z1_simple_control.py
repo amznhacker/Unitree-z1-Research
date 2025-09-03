@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 """
-Simple Z1 Control - Minimal keyboard control for Unitree Z1
-Controls: WASD=base/shoulder, QE=elbow, RF=forearm, TG=wrist_pitch, YH=wrist_roll
+Simple Z1 Control - Works with standard ROS controllers
+Controls: WASD=base/shoulder, ZE=elbow, RF=forearm, TG=wrist_pitch, YH=wrist_roll
 Space=open gripper, X=close gripper, ESC=stop
 """
 
@@ -11,7 +11,7 @@ import sys
 import termios
 import tty
 import threading
-from unitree_legged_msgs.msg import MotorCmd
+from std_msgs.msg import Float64
 
 class SimpleZ1Control:
     def __init__(self):
@@ -35,11 +35,23 @@ class SimpleZ1Control:
         self.step_size = 0.05
         self.running = True
         
-        # Publishers
+        # Publishers for standard effort controllers
         self.pubs = {}
-        for joint in self.limits.keys():
-            topic = f"/z1_gazebo/{joint}_controller/command"
-            self.pubs[joint] = rospy.Publisher(topic, MotorCmd, queue_size=1)
+        controller_map = {
+            "Joint01": "Joint01_controller",
+            "Joint02": "Joint02_controller", 
+            "Joint03": "Joint03_controller",
+            "Joint04": "Joint04_controller",
+            "Joint05": "Joint05_controller",
+            "Joint06": "Joint06_controller",
+            "Gripper": "Gripper_controller"
+        }
+        
+        for joint, controller in controller_map.items():
+            topic = f"/z1_gazebo/{controller}/command"
+            self.pubs[joint] = rospy.Publisher(topic, Float64, queue_size=1)
+        
+        rospy.loginfo("Z1 Simple Control initialized with standard controllers")
         
     def clamp(self, joint, pos):
         """Keep position within safe limits"""
@@ -51,11 +63,10 @@ class SimpleZ1Control:
         new_pos = self.positions[joint] + delta
         self.positions[joint] = self.clamp(joint, new_pos)
         
-        msg = MotorCmd()
-        msg.mode = 10
-        msg.q = float(self.positions[joint])
-        msg.Kp = 35.0
-        msg.Kd = 1.5
+        # Send effort command (simple proportional control)
+        effort = (self.positions[joint] - 0.0) * 100.0  # P gain
+        msg = Float64()
+        msg.data = effort
         
         self.pubs[joint].publish(msg)
     
@@ -64,11 +75,8 @@ class SimpleZ1Control:
         rospy.logwarn("STOPPING - Returning to neutral position")
         for joint in self.positions.keys():
             self.positions[joint] = 0.0
-            msg = MotorCmd()
-            msg.mode = 10
-            msg.q = 0.0
-            msg.Kp = 35.0
-            msg.Kd = 1.5
+            msg = Float64()
+            msg.data = 0.0
             self.pubs[joint].publish(msg)
     
     def keyboard_input(self):
@@ -98,7 +106,7 @@ class SimpleZ1Control:
                 elif char == 'd':  # Base right
                     self.move_joint("Joint01", -self.step_size)
                 
-                elif char == 'z':  # Elbow bend (changed from q to avoid quit conflict)
+                elif char == 'z':  # Elbow bend
                     self.move_joint("Joint03", self.step_size)
                 elif char == 'e':  # Elbow extend
                     self.move_joint("Joint03", -self.step_size)

@@ -48,7 +48,7 @@
             output="screen" ns="/$(arg rname)_gazebo" args="joint_state_controller 
             Joint01_controller Joint02_controller Joint03_controller 
             Joint04_controller Joint05_controller Joint06_controller 
-            gripper_controller"/>
+            Gripper_controller"/>
     </group>
 
     <!-- convert joint states to TF transforms for rviz, etc -->

@@ -1,6 +1,6 @@
-# Unitree Z1 Robotic Arm ROS Workspace
+# Unitree Z1 Robotic Arm - Complete Workspace
 
-Complete ROS workspace for Unitree Z1 robotic arm simulation and control on Ubuntu 20.04.6 LTS.
+Complete ROS workspace for Unitree Z1 robotic arm simulation and real robot control on Ubuntu 20.04.6 LTS.
 
 ## 🚀 Quick Start
 
@@ -14,54 +14,65 @@ chmod +x setup_and_run.sh
 
 ### Daily Use (One Command)
 ```bash
-./quick_start.sh keyboard    # or xbox, demo, draw
+./quick_start.sh keyboard    # Simulation with keyboard
+./quick_start.sh real        # Connect to real robot
 ```
-
-## 📦 What's Included
-
-- **Unitree ROS Packages** - Complete robot descriptions and controllers
-- **Z1 SDK** - C++ SDK with Python bindings
-- **Z1 Tools** - 15+ control scripts and entertainment demos
-- **Automated Setup** - One-command installation and daily startup
-- **Multiple Control Methods** - Keyboard, Xbox controller, automated demos
 
 ## 🎮 Control Methods
 
 | Method | Command | Description |
 |--------|---------|-------------|
-| Keyboard | `./quick_start.sh keyboard` | WASD movement, intuitive controls |
-| Xbox Controller | `./quick_start.sh xbox` | Gamepad control with triggers/bumpers |
-| Pick & Place | `./quick_start.sh demo` | Automated object manipulation |
-| Drawing | `./quick_start.sh draw` | Draw circles, squares, figure-8 |
-
-## 🛠 Requirements
-
-- Ubuntu 20.04.6 LTS
-- 4GB+ RAM, 20GB+ disk space
-- Internet connection for initial setup
-
-## 📋 Manual Installation
-
-If you prefer step-by-step setup, see [SETUP_UBUNTU_20.04.md](SETUP_UBUNTU_20.04.md)
+| **Keyboard** | `./quick_start.sh keyboard` | WASD movement, intuitive controls |
+| **Xbox Controller** | `./quick_start.sh xbox` | Gamepad control |
+| **Pick & Place Demo** | `./quick_start.sh demo` | Automated demonstration |
+| **Drawing Demo** | `./quick_start.sh draw` | Geometric patterns |
+| **Real Robot** | `./quick_start.sh real` | Connect to physical Z1 |
 
 ## 🎯 Keyboard Controls
 
-- **W/S**: Shoulder pitch up/down
-- **A/D**: Base rotate left/right  
-- **Z/E**: Elbow bend/extend
-- **R/F**: Forearm roll
-- **T/G**: Wrist pitch
-- **Y/H**: Wrist roll
+- **WASD**: Base rotation & shoulder pitch
+- **ZE**: Elbow bend/extend  
+- **RF**: Forearm roll
+- **TG**: Wrist pitch
+- **YH**: Wrist roll
 - **Space**: Open gripper
 - **X**: Close gripper
 - **ESC**: Emergency stop
 
-## 🤖 Supported Robots
+## 🤖 Two Modes
 
-- **Z1** - 6-DOF robotic arm (main focus)
-- **Quadrupeds**: A1, B1, B2, Go1, Go2, Aliengo, Laikago
-- **Humanoids**: G1, H1, H1_2
-- **Hands**: Dexterous hand descriptions
+### 🎮 **Simulation Mode (Default)**
+- Safe learning environment
+- No hardware required
+- Perfect for development
+- Gazebo physics simulation
+
+### 🔧 **Real Robot Mode**
+- Connects to physical Z1 arm
+- Requires robot setup and safety training
+- Uses same controls as simulation
+- Automatic safety limits
+
+## 🛠 Requirements
+
+- **Ubuntu 20.04.6 LTS**
+- **4GB+ RAM, 20GB+ disk space**
+- **Internet connection** (initial setup)
+- **Real Z1 Robot** (optional, for real mode)
+
+## 📋 Project Structure
+
+```
+Unitree-z1-Research/
+├── src/
+│   ├── unitree_ros/          # Robot descriptions & Gazebo
+│   ├── z1_sdk/               # Real robot SDK & examples
+│   ├── z1_tools/             # Control scripts & demos
+│   └── unitree_ros_to_real/  # Real hardware interface
+├── setup_and_run.sh          # Complete setup script
+├── quick_start.sh             # Daily use script
+└── docs/                     # Documentation
+```
 
 ## 🔧 Troubleshooting
 
@@ -70,47 +81,66 @@ If you prefer step-by-step setup, see [SETUP_UBUNTU_20.04.md](SETUP_UBUNTU_20.04
 pkill -f gazebo && ./quick_start.sh
 ```
 
-### Build errors:
+### Controllers not loading:
 ```bash
 cd ~/catkin_ws && catkin_make clean && catkin_make
+./quick_start.sh
 ```
 
-### Permission issues:
+### Real robot connection issues:
 ```bash
-chmod +x *.sh
-```
-
-## 📁 Project Structure
-
-```
-Unitree-Z1-Research/
-├── src/
-│   ├── unitree_ros/          # Robot descriptions & controllers
-│   ├── z1_sdk/               # C++ SDK with Python bindings
-│   ├── z1_tools/             # Control scripts & demos
-│   └── unitree_ros_to_real/  # Real hardware interface
-├── setup_and_run.sh          # Complete setup script
-├── quick_start.sh             # Daily use script
-└── README_SCRIPTS.md          # Detailed script usage
+# Check robot IP and network connection
+ping 192.168.123.110
 ```
 
 ## ⚠️ Safety
 
-- **🎮 SIMULATION ONLY** - Current scripts are for Gazebo simulation
-- **🚨 REAL HARDWARE WARNING** - See [SIMULATION_VS_REAL.md](SIMULATION_VS_REAL.md) for critical safety info
-- **Emergency Stop** - Press ESC or Ctrl+C anytime in simulation
-- **Conservative Limits** - All movements use safe joint ranges
-- **Real Hardware** - Requires special safety setup, training, and equipment
+### **Simulation Mode:**
+- ✅ Completely safe
+- ✅ No physical risks
+- ✅ Experiment freely
 
-### 🚫 NEVER use simulation scripts on real robot without proper safety measures!
+### **Real Robot Mode:**
+- 🚨 **Physical robot - can cause injury**
+- 🚨 **Requires safety training**
+- 🚨 **Emergency stop must be accessible**
+- 🚨 **Clear workspace required**
+
+## 🚀 Advanced Usage
+
+### **Custom Scripts:**
+```bash
+# Create your own control script
+cp src/z1_tools/scripts/z1_simple_control.py my_control.py
+# Edit and run: rosrun z1_tools my_control.py
+```
+
+### **Real Robot Setup:**
+```bash
+# 1. Connect robot via Ethernet
+# 2. Configure network (192.168.123.x)
+# 3. Test connection
+./quick_start.sh real
+```
+
+### **SDK Examples:**
+```bash
+# C++ examples
+cd src/z1_sdk/examples
+make
+./highcmd_basic
+
+# Python examples  
+cd src/z1_sdk/examples_py
+python3 example_highcmd.py
+```
 
 ## 🤝 Contributing
 
 1. Fork the repository
 2. Create feature branch: `git checkout -b feature-name`
-3. Commit changes: `git commit -am 'Add feature'`
-4. Push branch: `git push origin feature-name`
-5. Submit pull request
+3. Test in simulation first
+4. Submit pull request
 
 ## 📄 License
 
@@ -125,10 +155,10 @@ This project contains code from Unitree Robotics. Please respect their licensing
 ## 📞 Support
 
 For issues:
-1. Check [README_SCRIPTS.md](README_SCRIPTS.md) for troubleshooting
-2. Review [SETUP_UBUNTU_20.04.md](SETUP_UBUNTU_20.04.md) for manual setup
+1. Check simulation works first: `./quick_start.sh keyboard`
+2. Review documentation in `docs/` folder
 3. Open GitHub issue with error details
 
 ---
 
-**Made with ❤️ for robotics enthusiasts**
+**🎯 Perfect for learning robotics - Safe simulation with real robot capability!**

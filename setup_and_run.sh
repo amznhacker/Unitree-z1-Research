@@ -72,7 +72,11 @@ install_dependencies() {
     
     sudo apt install -y \
         ros-noetic-controller-interface \
+        ros-noetic-controller-manager \
+        ros-noetic-ros-control \
+        ros-noetic-ros-controllers \
         ros-noetic-gazebo-ros-control \
+        ros-noetic-gazebo-ros-pkgs \
         ros-noetic-joint-state-controller \
         ros-noetic-effort-controllers \
         ros-noetic-joint-trajectory-controller \
@@ -157,10 +161,15 @@ main() {
     print_success "Setup complete!"
     print_status "Starting Z1 simulation..."
     
-    # Launch simulation
+    # Clear gazebo cache and launch simulation
+    rm -rf ~/.gazebo/log/* 2>/dev/null || true
+    rm -rf /tmp/gazebo* 2>/dev/null || true
+    
     source "$WORKSPACE_DIR/devel/setup.bash"
+    export GAZEBO_MODEL_PATH="$WORKSPACE_DIR/src/unitree_ros/unitree_gazebo/worlds:$GAZEBO_MODEL_PATH"
+    
     roslaunch unitree_gazebo z1.launch &
-    sleep 8
+    sleep 12
     
     print_success "Gazebo ready! Starting keyboard control..."
     print_status "Controls: WASD=move, Space=open, X=close, ESC=stop"
