@@ -1,0 +1,22 @@
+<!-- Z1 Xbox Controller Launch File -->
+<launch>
+    <!-- Start joy node for Xbox controller -->
+    <node pkg="joy" type="joy_node" name="joy_node" output="screen">
+        <param name="dev" value="/dev/input/js0" />
+        <param name="deadzone" value="0.1" />
+        <param name="autorepeat_rate" value="50" />
+    </node>
+    
+    <!-- Start Z1 Xbox control script -->
+    <node pkg="z1_tools" type="z1_xbox_control.py" name="z1_xbox_control" output="screen" />
+    
+    <!-- Display instructions -->
+    <node pkg="rostopic" type="rostopic" name="xbox_instructions" 
+          args="echo -p 'Xbox Controller Ready! Controls:
+          Left Stick: Base rotation & Shoulder pitch
+          Right Stick: Elbow & Forearm roll  
+          D-Pad: Wrist pitch & roll
+          RT/LT: Gripper open/close
+          Back: Emergency stop'" 
+          output="screen" />
+</launch>

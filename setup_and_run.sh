@@ -85,9 +85,11 @@ install_dependencies() {
         ros-noetic-xacro \
         ros-noetic-urdf \
         python3-pip \
-        pybind11-dev
+        pybind11-dev \
+        portaudio19-dev \
+        espeak espeak-data
     
-    pip3 install numpy scipy matplotlib flask
+    pip3 install numpy scipy matplotlib flask SpeechRecognition pyttsx3 pyaudio
     
     print_success "Dependencies installed"
 }

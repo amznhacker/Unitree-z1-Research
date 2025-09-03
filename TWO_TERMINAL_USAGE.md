@@ -20,7 +20,7 @@ source ~/catkin_ws/devel/setup.bash
 
 # Control Scripts
 rosrun z1_tools z1_simple_control.py      # Keyboard control
-rosrun z1_tools z1_keyboard_control.py    # Advanced keyboard
+rosrun z1_tools z1_xbox_control.py        # Xbox controller
 
 # Demo Scripts  
 rosrun z1_tools z1_demo_simple.py         # Basic pick & place
@@ -46,8 +46,8 @@ rosrun z1_tools z1_motorcmd_sweep.py      # Joint sweep test
 
 ### Control Scripts:
 - `z1_simple_control.py` - Basic keyboard control (WASD, ZE, etc.)
-- `z1_keyboard_control.py` - Advanced keyboard with fine control
 - `z1_xbox_control.py` - Xbox controller support
+- `z1_web_gui.py` - Browser-based control interface
 
 ### Demo Scripts:
 - `z1_demo_simple.py` - Basic pick and place demonstration
@@ -86,11 +86,12 @@ rosrun z1_tools z1_motorcmd_sweep.py      # Joint sweep test
 - **ESC** = Emergency stop
 - **Q** = Quit
 
-### Advanced Keyboard (z1_keyboard_control.py):
-- Same as above plus:
-- **1-6** = Select individual joint
-- **Arrow keys** = Fine control selected joint
-- **Numbers** = Preset positions
+### Xbox Controller (z1_xbox_control.py):
+- **Left Stick** = Base rotation & shoulder pitch
+- **Right Stick** = Elbow & forearm roll
+- **D-Pad** = Wrist pitch & roll
+- **RT/LT** = Gripper open/close
+- **Back Button** = Emergency stop
 
 ## 🔧 Troubleshooting
 

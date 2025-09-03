@@ -16,6 +16,7 @@ chmod +x setup_and_run.sh
 ### One Command (Recommended)
 ```bash
 ./quick_start.sh keyboard    # Manual control
+./quick_start.sh xbox        # Xbox controller
 ./quick_start.sh web         # Browser control
 ./quick_start.sh visual      # Visual programming
 ./quick_start.sh demo        # Pick & place demo
@@ -60,7 +61,7 @@ sudo chown -R $USER:$USER ~/catkin_ws
 
 ## 📁 Available Scripts
 
-**Control:** keyboard, web_gui, visual_programmer  
+**Control:** keyboard, xbox_control, web_gui, visual_programmer  
 **Demos:** demo_simple, pick_place, drawing, bartender  
 **Entertainment:** chess_player, magician, musician, wave  
 **Utilities:** emergency_stop, safe_limits, motorcmd_sweep  

@@ -99,11 +99,22 @@ case $CONTROL_METHOD in
         rosrun z1_tools z1_simple_control.py
         ;;
     xbox|x)
+        print_status "Starting Xbox controller..."
         if command -v joy_node &> /dev/null; then
+            print_success "Xbox controller support detected"
             roslaunch z1_tools z1_xbox_control.launch
         else
-            echo "Error: joy_node not found. Install with: sudo apt install ros-noetic-joy"
-            exit 1
+            print_warning "Xbox controller support not installed"
+            echo "Installing Xbox controller support..."
+            sudo apt install -y ros-noetic-joy
+            if [ $? -eq 0 ]; then
+                print_success "Xbox controller support installed"
+                roslaunch z1_tools z1_xbox_control.launch
+            else
+                echo "❌ Failed to install Xbox controller support"
+                echo "💡 Run manually: sudo apt install ros-noetic-joy"
+                exit 1
+            fi
         fi
         ;;
     demo|d)
@@ -132,6 +143,19 @@ case $CONTROL_METHOD in
         print_success "Open browser: http://localhost:8081"
         rosrun z1_tools z1_visual_programmer.py
         ;;
+    advanced|a)
+        print_status "Starting Advanced Control System..."
+        rosrun z1_tools z1_advanced_control.py
+        ;;
+    ai|voice)
+        print_status "Starting AI Assistant..."
+        print_success "Voice control ready - say 'Hello Z1'"
+        rosrun z1_tools z1_ai_assistant.py
+        ;;
+    check|test)
+        print_status "Running system check..."
+        ./system_check.sh
+        ;;
     *)
         echo "Usage: $0 [keyboard|xbox|demo|draw|real]"
         echo "  keyboard - Keyboard control (default)"
@@ -141,6 +165,10 @@ case $CONTROL_METHOD in
         echo "  bartender - Cocktail mixing demo"
         echo "  web      - Web browser control"
         echo "  visual   - Visual programming (Scratch-like)"
+        echo "  xbox     - Xbox controller"
+        echo "  advanced - Advanced control (trajectory, force)"
+        echo "  ai       - AI voice assistant"
+        echo "  check    - System functionality check"
         echo "  real     - Connect to real robot"
         rosrun z1_tools z1_simple_control.py
         ;;
