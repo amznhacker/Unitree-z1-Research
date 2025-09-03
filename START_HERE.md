@@ -13,10 +13,22 @@ chmod +x setup_and_run.sh
 ### Daily Use (Quick Start)
 ```bash
 ./quick_start.sh keyboard    # Keyboard control
-./quick_start.sh xbox        # Xbox controller  
 ./quick_start.sh demo        # Pick & place demo
+./quick_start.sh bartender   # Cocktail mixing demo
 ./quick_start.sh draw        # Drawing demo
 ./quick_start.sh real        # Real robot mode
+```
+
+### Advanced Usage (Two Terminals)
+```bash
+# Terminal 1: Start Gazebo
+roslaunch unitree_gazebo z1.launch
+
+# Terminal 2: Run any script
+rosrun z1_tools z1_bartender.py
+rosrun z1_tools z1_chess_player.py
+rosrun z1_tools z1_magician.py
+# See TWO_TERMINAL_USAGE.md for all scripts
 ```
 
 ## 🎮 Controls

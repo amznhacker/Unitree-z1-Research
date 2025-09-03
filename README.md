@@ -156,8 +156,9 @@ This project contains code from Unitree Robotics. Please respect their licensing
 
 For issues:
 1. Check simulation works first: `./quick_start.sh keyboard`
-2. Review documentation in `docs/` folder
-3. Open GitHub issue with error details
+2. See [TWO_TERMINAL_USAGE.md](TWO_TERMINAL_USAGE.md) for advanced usage
+3. Review documentation for troubleshooting
+4. Open GitHub issue with error details
 
 ---
 

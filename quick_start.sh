@@ -111,6 +111,9 @@ case $CONTROL_METHOD in
     draw)
         rosrun z1_tools z1_drawing.py
         ;;
+    bartender|b)
+        rosrun z1_tools z1_bartender.py
+        ;;
     real|r)
         print_warning "REAL ROBOT MODE - Ensure robot is connected and safe"
         print_status "Starting simulation bridge to real robot..."
@@ -124,6 +127,7 @@ case $CONTROL_METHOD in
         echo "  xbox     - Xbox controller"
         echo "  demo     - Pick and place demo"
         echo "  draw     - Drawing demo"
+        echo "  bartender - Cocktail mixing demo"
         echo "  real     - Connect to real robot"
         rosrun z1_tools z1_simple_control.py
         ;;
