@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Unitree Z1 Robotic Arm ROS Workspace
 
 Complete ROS workspace for Unitree Z1 robotic arm simulation and control on Ubuntu 20.04.6 LTS.
@@ -7,15 +6,15 @@ Complete ROS workspace for Unitree Z1 robotic arm simulation and control on Ubun
 
 ### First Time Setup (One Command)
 ```bash
-git clone https://github.com/YOUR_USERNAME/unitree_z1_workspace.git
-cd unitree_z1_workspace
+git clone git@github.com:amznhacker/Unitree-z1-Research.git
+cd Unitree-Z1-Research
 chmod +x setup_and_run.sh
-./setup_and_run.sh --install-ros --control-method keyboard
+./setup_and_run.sh --install-ros
 ```
 
 ### Daily Use (One Command)
 ```bash
-./quick_start.sh keyboard    # or xbox, demo, draw, chess
+./quick_start.sh keyboard    # or xbox, demo, draw
 ```
 
 ## 📦 What's Included
@@ -34,9 +33,6 @@ chmod +x setup_and_run.sh
 | Xbox Controller | `./quick_start.sh xbox` | Gamepad control with triggers/bumpers |
 | Pick & Place | `./quick_start.sh demo` | Automated object manipulation |
 | Drawing | `./quick_start.sh draw` | Draw circles, squares, figure-8 |
-| Chess Player | `./quick_start.sh chess` | Chess piece movement simulation |
-| Bartender | `./quick_start.sh bartender` | Cocktail mixing demonstration |
-| Musician | `./quick_start.sh wave` | Rhythmic arm movements |
 
 ## 🛠 Requirements
 
@@ -87,7 +83,7 @@ chmod +x *.sh
 ## 📁 Project Structure
 
 ```
-unitree_ws/
+Unitree-Z1-Research/
 ├── src/
 │   ├── unitree_ros/          # Robot descriptions & controllers
 │   ├── z1_sdk/               # C++ SDK with Python bindings
@@ -97,14 +93,6 @@ unitree_ws/
 ├── quick_start.sh             # Daily use script
 └── README_SCRIPTS.md          # Detailed script usage
 ```
-
-## 🎪 Entertainment Demos
-
-- **Chess Player** - Strategic piece movements
-- **Bartender** - Cocktail mixing choreography  
-- **Musician** - Rhythmic conducting motions
-- **Magician** - Magic trick performances
-- **Cigar Roller** - Artisan crafting simulation
 
 ## ⚠️ Safety
 
@@ -144,6 +132,3 @@ For issues:
 ---
 
 **Made with ❤️ for robotics enthusiasts**
-=======
-# Unitree-z1-research
->>>>>>> 43c4229164c53aacc1e70145c2c1e6a292f4c55c

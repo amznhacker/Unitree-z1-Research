@@ -4,8 +4,8 @@
 
 ### First Time (Install Everything)
 ```bash
-git clone https://github.com/YOUR_USERNAME/unitree_z1_workspace.git
-cd unitree_z1_workspace
+git clone git@github.com:amznhacker/Unitree-z1-Research.git
+cd Unitree-Z1-Research
 chmod +x setup_and_run.sh
 ./setup_and_run.sh --install-ros
 ```
