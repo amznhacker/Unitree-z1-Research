@@ -30,3 +30,14 @@ __pycache__/
 *.o
 *.so
 *.a
+
+# Z1 SDK build artifacts
+src/z1_sdk/build/
+src/z1_sdk/lib/*.so
+
+# Backup files
+*.bak
+*.backup
+
+# Log files
+*.log
