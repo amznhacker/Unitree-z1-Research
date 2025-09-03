@@ -13,9 +13,10 @@ chmod +x setup_and_run.sh
 ### Daily Use (Quick Start)
 ```bash
 ./quick_start.sh keyboard    # Keyboard control
-./quick_start.sh xbox        # Xbox controller
+./quick_start.sh xbox        # Xbox controller  
 ./quick_start.sh demo        # Pick & place demo
 ./quick_start.sh draw        # Drawing demo
+./quick_start.sh real        # Real robot mode
 ```
 
 ## 🎮 Controls
@@ -32,6 +33,11 @@ chmod +x setup_and_run.sh
 
 ## 🔧 Troubleshooting
 
+**Permission errors:**
+```bash
+sudo chown -R $USER:$USER ~/catkin_ws
+```
+
 **Gazebo won't start:**
 ```bash
 pkill -f gazebo && ./quick_start.sh
@@ -44,9 +50,9 @@ cd ~/catkin_ws && catkin_make clean && catkin_make
 
 ## ⚠️ Safety Warning
 
-**SIMULATION ONLY** - These scripts are for Gazebo simulation.
-For real hardware, see [REAL_HARDWARE_GUIDE.md](REAL_HARDWARE_GUIDE.md)
+**SIMULATION ONLY** by default - These scripts are for Gazebo simulation.
+For real hardware, use `./quick_start.sh real` and follow safety procedures.
 
 ---
 
-That's it! Two commands and you're running the Z1 simulator.
+**Perfect! Two commands and you're running the Z1 simulator.**

@@ -95,39 +95,52 @@ install_dependencies() {
 setup_workspace() {
     print_status "Setting up workspace..."
     
+    # Create workspace directory with proper permissions
     mkdir -p "$WORKSPACE_DIR/src"
     
+    # Copy source files
     if [ -d "$SCRIPT_DIR/src" ]; then
+        print_status "Copying source files..."
         cp -r "$SCRIPT_DIR/src"/* "$WORKSPACE_DIR/src/"
     fi
     
-    # Fix CMakeLists.txt for catkin
+    # Initialize catkin workspace properly
     cd "$WORKSPACE_DIR"
-    sudo rm -f src/CMakeLists.txt
-    ln -s /opt/ros/noetic/share/catkin/cmake/toplevel.cmake src/CMakeLists.txt
     
-    cd "$WORKSPACE_DIR"
+    # Remove any existing CMakeLists.txt and create proper symlink
+    if [ -f "src/CMakeLists.txt" ]; then
+        rm -f src/CMakeLists.txt
+    fi
+    
+    # Create the catkin workspace symlink
+    catkin_init_workspace src
+    
+    # Source ROS and build
     source /opt/ros/noetic/setup.bash
-    
     catkin_make
     
+    # Add workspace sourcing to bashrc
     if ! grep -q "source $WORKSPACE_DIR/devel/setup.bash" ~/.bashrc; then
         echo "source $WORKSPACE_DIR/devel/setup.bash" >> ~/.bashrc
     fi
+    
+    # Source the workspace
     source "$WORKSPACE_DIR/devel/setup.bash"
     
-    print_success "Workspace built"
+    print_success "Workspace built successfully"
 }
 
 make_scripts_executable() {
     print_status "Making scripts executable..."
     
-    chmod +x "$SCRIPT_DIR"/*.sh
+    # Make all shell scripts executable
+    find "$SCRIPT_DIR" -name "*.sh" -exec chmod +x {} \;
     
+    # Make Python scripts executable
     local scripts_dir="$WORKSPACE_DIR/src/z1_tools/scripts"
     if [ -d "$scripts_dir" ]; then
-        chmod +x "$scripts_dir"/*.py
-        chmod +x "$scripts_dir"/*.sh
+        find "$scripts_dir" -name "*.py" -exec chmod +x {} \;
+        find "$scripts_dir" -name "*.sh" -exec chmod +x {} \;
     fi
     
     print_success "Scripts ready"
@@ -145,36 +158,49 @@ main() {
     
     trap cleanup SIGINT SIGTERM
     
+    # Install ROS if requested
     if [ "$INSTALL_ROS" = true ]; then
         install_ros_noetic
     fi
     
+    # Check if ROS is available
     if ! command -v roscore &> /dev/null; then
         echo "Error: ROS not found. Run with --install-ros flag"
         exit 1
     fi
     
+    # Install dependencies and setup workspace
     install_dependencies
     setup_workspace
     make_scripts_executable
     
     print_success "Setup complete!"
-    print_status "Starting Z1 simulation..."
+    print_status "You can now run: ./quick_start.sh keyboard"
+    print_status "Or start immediately with simulation..."
     
-    # Clear gazebo cache and launch simulation
-    rm -rf ~/.gazebo/log/* 2>/dev/null || true
-    rm -rf /tmp/gazebo* 2>/dev/null || true
-    
-    source "$WORKSPACE_DIR/devel/setup.bash"
-    export GAZEBO_MODEL_PATH="$WORKSPACE_DIR/src/unitree_ros/unitree_gazebo/worlds:$GAZEBO_MODEL_PATH"
-    
-    roslaunch unitree_gazebo z1.launch &
-    sleep 12
-    
-    print_success "Gazebo ready! Starting keyboard control..."
-    print_status "Controls: WASD=move, Space=open, X=close, ESC=stop"
-    
-    rosrun z1_tools z1_simple_control.py
+    # Ask user if they want to start simulation
+    read -p "Start Z1 simulation now? (y/n): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        # Clear gazebo cache
+        rm -rf ~/.gazebo/log/* 2>/dev/null || true
+        rm -rf /tmp/gazebo* 2>/dev/null || true
+        
+        # Source workspace and set environment
+        source "$WORKSPACE_DIR/devel/setup.bash"
+        export GAZEBO_MODEL_PATH="$WORKSPACE_DIR/src/unitree_ros/unitree_gazebo/worlds:$GAZEBO_MODEL_PATH"
+        
+        print_status "Starting Z1 simulation..."
+        roslaunch unitree_gazebo z1.launch &
+        sleep 15
+        
+        print_success "Gazebo ready! Starting keyboard control..."
+        print_status "Controls: WASD=move, ZE=elbow, Space=open, X=close, ESC=stop"
+        
+        rosrun z1_tools z1_simple_control.py
+    else
+        print_success "Setup complete! Run './quick_start.sh keyboard' to start."
+    fi
 }
 
 main "$@"
