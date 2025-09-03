@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Simple Z1 Control - Works with standard ROS controllers
+Simple Z1 Control - Works with Unitree MotorCmd messages
 Controls: WASD=base/shoulder, ZE=elbow, RF=forearm, TG=wrist_pitch, YH=wrist_roll
 Space=open gripper, X=close gripper, ESC=stop
 """
@@ -11,7 +11,7 @@ import sys
 import termios
 import tty
 import threading
-from std_msgs.msg import Float64
+from unitree_legged_msgs.msg import MotorCmd
 
 class SimpleZ1Control:
     def __init__(self):
@@ -35,7 +35,7 @@ class SimpleZ1Control:
         self.step_size = 0.05
         self.running = True
         
-        # Publishers for standard effort controllers
+        # Publishers for Unitree controllers
         self.pubs = {}
         controller_map = {
             "Joint01": "Joint01_controller",
@@ -49,9 +49,9 @@ class SimpleZ1Control:
         
         for joint, controller in controller_map.items():
             topic = f"/z1_gazebo/{controller}/command"
-            self.pubs[joint] = rospy.Publisher(topic, Float64, queue_size=1)
+            self.pubs[joint] = rospy.Publisher(topic, MotorCmd, queue_size=1)
         
-        rospy.loginfo("Z1 Simple Control initialized with standard controllers")
+        rospy.loginfo("Z1 Simple Control initialized with Unitree controllers")
         
     def clamp(self, joint, pos):
         """Keep position within safe limits"""
@@ -63,10 +63,14 @@ class SimpleZ1Control:
         new_pos = self.positions[joint] + delta
         self.positions[joint] = self.clamp(joint, new_pos)
         
-        # Send effort command (simple proportional control)
-        effort = (self.positions[joint] - 0.0) * 100.0  # P gain
-        msg = Float64()
-        msg.data = effort
+        # Create MotorCmd message
+        msg = MotorCmd()
+        msg.mode = 10  # Position control mode
+        msg.q = float(self.positions[joint])
+        msg.dq = 0.0
+        msg.tau = 0.0
+        msg.Kp = 35.0
+        msg.Kd = 1.5
         
         self.pubs[joint].publish(msg)
     
@@ -75,8 +79,13 @@ class SimpleZ1Control:
         rospy.logwarn("STOPPING - Returning to neutral position")
         for joint in self.positions.keys():
             self.positions[joint] = 0.0
-            msg = Float64()
-            msg.data = 0.0
+            msg = MotorCmd()
+            msg.mode = 10
+            msg.q = 0.0
+            msg.dq = 0.0
+            msg.tau = 0.0
+            msg.Kp = 35.0
+            msg.Kd = 1.5
             self.pubs[joint].publish(msg)
     
     def keyboard_input(self):
