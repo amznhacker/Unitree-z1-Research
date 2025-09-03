@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Unitree Z1 Robotic Arm ROS Workspace
 
 Complete ROS workspace for Unitree Z1 robotic arm simulation and control on Ubuntu 20.04.6 LTS.
@@ -143,3 +144,6 @@ For issues:
 ---
 
 **Made with ❤️ for robotics enthusiasts**
+=======
+# Unitree-z1-research
+>>>>>>> 43c4229164c53aacc1e70145c2c1e6a292f4c55c

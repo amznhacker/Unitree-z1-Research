@@ -4,7 +4,7 @@
 
 ```bash
 # Navigate to project directory
-cd /path/to/unitree_ws/unitree_ws
+cd Unitree-z1-Research
 
 # Make scripts executable
 chmod +x *.sh

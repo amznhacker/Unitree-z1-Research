@@ -49,7 +49,7 @@ git branch -M main
 
 # Add remote origin
 git remote remove origin 2>/dev/null || true
-git remote add origin "https://github.com/$GITHUB_USERNAME/$REPO_NAME.git"
+git remote add origin "git@github.com:amznhacker/Unitree-z1-Research.git"
 echo "✅ Remote origin set"
 
 echo ""
@@ -66,5 +66,5 @@ echo ""
 echo "3. Or run this command to push now:"
 echo "   git push -u origin main"
 echo ""
-echo "🎯 Repository will be available at:"
-echo "   https://github.com/$GITHUB_USERNAME/$REPO_NAME"
+echo "🎯 Repository is available at:"
+echo "   git@github.com:amznhacker/Unitree-z1-Research.git"

@@ -69,7 +69,8 @@ New User Journey:
 
 1. **Clone & Setup** (15 min):
    ```bash
-   git clone repo && cd repo
+   git clone git@github.com:amznhacker/Unitree-z1-Research.git
+cd Unitree-z1-Research
    ./setup_and_run.sh --install-ros
    ```
 
