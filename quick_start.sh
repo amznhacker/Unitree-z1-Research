@@ -47,7 +47,8 @@ source "$WORKSPACE_DIR/devel/setup.bash"
 print_status "Cleaning up existing processes..."
 pkill -f ros || true
 pkill -f gazebo || true
-sleep 3
+killall -9 roscore rosmaster gzserver gzclient 2>/dev/null || true
+sleep 5
 
 # Clear gazebo cache
 print_status "Clearing Gazebo cache..."
@@ -121,6 +122,16 @@ case $CONTROL_METHOD in
         sleep 2
         rosrun z1_tools z1_simple_control.py
         ;;
+    web|w)
+        print_status "Starting Web GUI..."
+        print_success "Open browser: http://localhost:8080"
+        rosrun z1_tools z1_web_gui.py
+        ;;
+    visual|v)
+        print_status "Starting Visual Programmer..."
+        print_success "Open browser: http://localhost:8081"
+        rosrun z1_tools z1_visual_programmer.py
+        ;;
     *)
         echo "Usage: $0 [keyboard|xbox|demo|draw|real]"
         echo "  keyboard - Keyboard control (default)"
@@ -128,6 +139,8 @@ case $CONTROL_METHOD in
         echo "  demo     - Pick and place demo"
         echo "  draw     - Drawing demo"
         echo "  bartender - Cocktail mixing demo"
+        echo "  web      - Web browser control"
+        echo "  visual   - Visual programming (Scratch-like)"
         echo "  real     - Connect to real robot"
         rosrun z1_tools z1_simple_control.py
         ;;

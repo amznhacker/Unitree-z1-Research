@@ -87,7 +87,7 @@ install_dependencies() {
         python3-pip \
         pybind11-dev
     
-    pip3 install numpy scipy matplotlib
+    pip3 install numpy scipy matplotlib flask
     
     print_success "Dependencies installed"
 }

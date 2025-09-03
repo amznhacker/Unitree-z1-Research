@@ -11,9 +11,9 @@ chmod +x setup_and_run.sh
 ## Daily Use
 ```bash
 ./quick_start.sh keyboard    # Keyboard control
-./quick_start.sh demo        # Pick & place demo  
-./quick_start.sh bartender   # Cocktail demo
-./quick_start.sh draw        # Drawing demo
+./quick_start.sh web         # Web browser GUI
+./quick_start.sh visual      # Visual programming
+./quick_start.sh demo        # Pick & place demo
 ```
 
 ## Controls

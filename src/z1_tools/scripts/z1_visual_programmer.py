@@ -1,297 +1,440 @@
 #!/usr/bin/env python3
-"""
-Z1 Visual Programmer - Scratch-like GUI for Z1 Programming
-"""
-import tkinter as tk
-from tkinter import ttk, messagebox, filedialog
-import json, math, threading, time
-import rospy
-from unitree_legged_msgs.msg import MotorCmd
 
-class Z1Block:
-    def __init__(self, block_type, params=None):
-        self.type = block_type
-        self.params = params or {}
+"""
+Z1 Visual Programmer - Scratch-like programming for Z1 robot
+Access at: http://localhost:8081
+"""
+
+import rospy
+import json
+import time
+import threading
+from flask import Flask, render_template_string, request, jsonify
+from unitree_legged_msgs.msg import MotorCmd
+from sensor_msgs.msg import JointState
 
 class Z1VisualProgrammer:
     def __init__(self):
-        self.root = tk.Tk()
-        self.root.title("Z1 Visual Programmer")
-        self.root.geometry("1200x800")
+        rospy.init_node("z1_visual_programmer")
         
-        self.ros_initialized = False
-        self.pubs = {}
-        self.joints = ["Joint01", "Joint02", "Joint03", "Joint04", "Joint05", "Joint06", "Gripper"]
-        self.program_blocks = []
-        self.running = False
-        
+        # Joint limits and publishers
         self.limits = {
             "Joint01": (-1.2, 1.2), "Joint02": (-1.0, 1.0), "Joint03": (0.0, 2.4),
             "Joint04": (-1.2, 1.2), "Joint05": (-1.0, 1.0), "Joint06": (-1.2, 1.2),
-            "Gripper": (0.0, 0.8)
+            "Gripper": (0.0, 0.6)
         }
         
-        self.poses = {
-            "Home": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8],
-            "Forward": [0.0, -0.5, 1.2, 0.0, -0.7, 0.0, 0.8],
-            "Up": [0.0, 0.8, 0.4, 0.0, 0.4, 0.0, 0.8],
-            "Table": [0.0, -0.8, 1.5, 0.0, -0.7, 0.0, 0.8]
-        }
+        self.positions = {j: 0.0 for j in self.limits.keys()}
+        self.pubs = {}
         
-        self.setup_gui()
-        self.init_ros()
-    
-    def init_ros(self):
-        try:
-            rospy.init_node("z1_visual_programmer", anonymous=True)
-            for joint in self.joints:
-                topic = f"/z1_gazebo/{joint}_controller/command"
-                self.pubs[joint] = rospy.Publisher(topic, MotorCmd, queue_size=10)
-            self.ros_initialized = True
-            self.status_label.config(text="🟢 Connected", fg="green")
-        except:
-            self.status_label.config(text="🔴 Disconnected", fg="red")
-    
-    def setup_gui(self):
-        # Toolbar
-        toolbar = tk.Frame(self.root, bg="lightgray", height=40)
-        toolbar.pack(fill=tk.X, side=tk.TOP)
+        for joint in self.limits.keys():
+            controller = f"{joint}_controller" if joint != "Gripper" else "Gripper_controller"
+            topic = f"/z1_gazebo/{controller}/command"
+            self.pubs[joint] = rospy.Publisher(topic, MotorCmd, queue_size=1)
         
-        tk.Button(toolbar, text="💾 Save", command=self.save_program).pack(side=tk.LEFT, padx=5)
-        tk.Button(toolbar, text="🗑️ Clear", command=self.clear_program).pack(side=tk.LEFT, padx=5)
-        
-        self.status_label = tk.Label(toolbar, text="🔴 Disconnected", fg="red")
-        self.status_label.pack(side=tk.RIGHT, padx=10)
-        
-        # Block palette
-        palette = tk.Frame(self.root, bg="lightblue", width=250)
-        palette.pack(fill=tk.Y, side=tk.LEFT)
-        palette.pack_propagate(False)
-        
-        tk.Label(palette, text="🧩 Blocks", font=("Arial", 14, "bold"), bg="lightblue").pack(pady=10)
-        
-        blocks = [
-            ("Move to Pose", "move_pose", "lightgreen"),
-            ("Open Gripper", "open_gripper", "lightcoral"),
-            ("Close Gripper", "close_gripper", "lightcoral"),
-            ("Wait", "wait", "yellow"),
-            ("Repeat", "repeat", "plum")
-        ]
-        
-        for name, block_type, color in blocks:
-            tk.Button(palette, text=name, bg=color, width=20,
-                     command=lambda bt=block_type: self.add_block(bt)).pack(pady=2)
-        
-        # Program area
-        program_frame = tk.Frame(self.root, bg="white")
-        program_frame.pack(fill=tk.BOTH, expand=True, side=tk.LEFT)
-        
-        tk.Label(program_frame, text="📝 Program", font=("Arial", 14, "bold"), bg="white").pack(pady=10)
-        
-        canvas = tk.Canvas(program_frame, bg="white")
-        scrollbar = tk.Scrollbar(program_frame, orient="vertical", command=canvas.yview)
-        self.program_area = tk.Frame(canvas, bg="white")
-        
-        self.program_area.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.create_window((0, 0), window=self.program_area, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-        
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
-        
-        # Control panel
-        control = tk.Frame(self.root, bg="lightgray", width=200)
-        control.pack(fill=tk.Y, side=tk.RIGHT)
-        control.pack_propagate(False)
-        
-        tk.Label(control, text="🎮 Control", font=("Arial", 14, "bold"), bg="lightgray").pack(pady=10)
-        
-        tk.Button(control, text="▶️ Run", bg="lightgreen", width=15, command=self.run_program).pack(pady=5)
-        tk.Button(control, text="⏹️ Stop", bg="lightcoral", width=15, command=self.stop_program).pack(pady=5)
-        tk.Button(control, text="🏠 Home", bg="lightyellow", width=15, command=self.go_home).pack(pady=5)
-        
-        self.status_text = tk.Text(control, height=8, width=25)
-        self.status_text.pack(pady=5)
-        
-        for pose_name in self.poses.keys():
-            tk.Button(control, text=pose_name, width=15,
-                     command=lambda p=pose_name: self.quick_pose(p)).pack(pady=1)
-    
-    def add_block(self, block_type):
-        block = Z1Block(block_type)
-        
-        frame = tk.Frame(self.program_area, bg="lightblue", relief="raised", bd=2)
-        frame.pack(fill=tk.X, pady=2, padx=10)
-        
-        if block_type == "move_pose":
-            tk.Label(frame, text="🚀 Move to:", bg="lightgreen").pack(side=tk.LEFT)
-            pose_var = tk.StringVar(value="Home")
-            combo = ttk.Combobox(frame, textvariable=pose_var, values=list(self.poses.keys()), width=10)
-            combo.pack(side=tk.LEFT, padx=5)
-            block.params["pose"] = pose_var
-            
-        elif block_type == "wait":
-            tk.Label(frame, text="⏰ Wait:", bg="yellow").pack(side=tk.LEFT)
-            time_var = tk.StringVar(value="1.0")
-            entry = tk.Entry(frame, textvariable=time_var, width=5)
-            entry.pack(side=tk.LEFT, padx=5)
-            tk.Label(frame, text="sec", bg="yellow").pack(side=tk.LEFT)
-            block.params["time"] = time_var
-            
-        elif block_type == "repeat":
-            tk.Label(frame, text="🔄 Repeat:", bg="plum").pack(side=tk.LEFT)
-            count_var = tk.StringVar(value="3")
-            entry = tk.Entry(frame, textvariable=count_var, width=3)
-            entry.pack(side=tk.LEFT, padx=5)
-            block.params["count"] = count_var
-            
-        elif block_type == "open_gripper":
-            tk.Label(frame, text="🤏 Open Gripper", bg="lightcoral").pack(side=tk.LEFT)
-            
-        elif block_type == "close_gripper":
-            tk.Label(frame, text="🤏 Close Gripper", bg="lightcoral").pack(side=tk.LEFT)
-        
-        # Delete button
-        tk.Button(frame, text="❌", command=lambda: self.delete_block(frame, block)).pack(side=tk.RIGHT)
-        
-        self.program_blocks.append(block)
-    
-    def delete_block(self, frame, block):
-        frame.destroy()
-        if block in self.program_blocks:
-            self.program_blocks.remove(block)
-    
-    def send_pose(self, positions, duration=2.0):
-        if not self.ros_initialized:
-            return
-        
-        start_time = time.time()
-        while time.time() - start_time < duration and not rospy.is_shutdown():
-            elapsed = time.time() - start_time
-            alpha = elapsed / duration
-            smooth_alpha = 0.5 * (1 - math.cos(math.pi * alpha))
-            
-            for i, joint in enumerate(self.joints):
-                if i < len(positions):
-                    position = positions[i] * smooth_alpha
-                    
-                    msg = MotorCmd()
-                    msg.mode = 10
-                    msg.q = float(position)
-                    msg.Kp = 35.0
-                    msg.Kd = 1.5
-                    self.pubs[joint].publish(msg)
-            
-            time.sleep(0.02)
-    
-    def execute_block(self, block):
-        if block.type == "move_pose":
-            pose_name = block.params["pose"].get()
-            if pose_name in self.poses:
-                self.log(f"Moving to {pose_name}")
-                self.send_pose(self.poses[pose_name])
-                
-        elif block.type == "wait":
-            wait_time = float(block.params["time"].get())
-            self.log(f"Waiting {wait_time} seconds")
-            time.sleep(wait_time)
-            
-        elif block.type == "open_gripper":
-            self.log("Opening gripper")
-            current_pose = [0.0] * 6 + [0.8]
-            self.send_pose(current_pose, 1.0)
-            
-        elif block.type == "close_gripper":
-            self.log("Closing gripper")
-            current_pose = [0.0] * 6 + [0.2]
-            self.send_pose(current_pose, 1.0)
-    
-    def run_program(self):
-        if self.running:
-            return
-        
-        self.running = True
-        self.log("🚀 Starting program...")
-        
-        def run_thread():
-            try:
-                i = 0
-                while i < len(self.program_blocks) and self.running:
-                    block = self.program_blocks[i]
-                    
-                    if block.type == "repeat":
-                        count = int(block.params["count"].get())
-                        repeat_start = i + 1
-                        
-                        for _ in range(count):
-                            if not self.running:
-                                break
-                            j = repeat_start
-                            while j < len(self.program_blocks) and self.running:
-                                if self.program_blocks[j].type == "repeat":
-                                    break
-                                self.execute_block(self.program_blocks[j])
-                                j += 1
-                        
-                        # Skip to end of repeat block
-                        while i < len(self.program_blocks) and self.program_blocks[i].type != "repeat":
-                            i += 1
-                        i += 1
-                    else:
-                        self.execute_block(block)
-                        i += 1
-                
-                self.log("✅ Program completed!")
-            except Exception as e:
-                self.log(f"❌ Error: {e}")
-            finally:
-                self.running = False
-        
-        threading.Thread(target=run_thread, daemon=True).start()
-    
-    def stop_program(self):
+        # Program execution
+        self.program = []
         self.running = False
-        self.log("⏹️ Program stopped")
+        self.execution_thread = None
+        
+        # Flask app
+        self.app = Flask(__name__)
+        self.setup_routes()
     
-    def go_home(self):
-        self.log("🏠 Going home")
-        self.send_pose(self.poses["Home"])
-    
-    def quick_pose(self, pose_name):
-        self.log(f"Quick move to {pose_name}")
-        self.send_pose(self.poses[pose_name])
-    
-    def log(self, message):
-        self.status_text.insert(tk.END, f"{message}\n")
-        self.status_text.see(tk.END)
-        self.root.update()
-    
-    def save_program(self):
-        filename = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json")])
-        if filename:
-            program_data = []
-            for block in self.program_blocks:
-                block_data = {"type": block.type, "params": {}}
-                for key, var in block.params.items():
-                    block_data["params"][key] = var.get()
-                program_data.append(block_data)
+    def move_joint(self, joint, position, duration=1.0):
+        """Move joint to position over duration"""
+        start_pos = self.positions[joint]
+        target_pos = max(self.limits[joint][0], min(self.limits[joint][1], float(position)))
+        
+        steps = int(duration * 50)  # 50Hz
+        for i in range(steps + 1):
+            if not self.running:
+                break
             
-            with open(filename, 'w') as f:
-                json.dump(program_data, f, indent=2)
-            self.log(f"💾 Saved to {filename}")
+            progress = i / steps
+            current_pos = start_pos + (target_pos - start_pos) * progress
+            
+            msg = MotorCmd()
+            msg.mode = 10
+            msg.q = current_pos
+            msg.Kp = 35.0
+            msg.Kd = 1.5
+            
+            self.pubs[joint].publish(msg)
+            self.positions[joint] = current_pos
+            time.sleep(0.02)  # 50Hz
     
-    def clear_program(self):
-        for widget in self.program_area.winfo_children():
-            widget.destroy()
-        self.program_blocks.clear()
-        self.log("🗑️ Program cleared")
+    def execute_program(self, program):
+        """Execute visual program"""
+        self.running = True
+        
+        for block in program:
+            if not self.running:
+                break
+                
+            block_type = block.get('type')
+            
+            if block_type == 'move':
+                joint = block.get('joint')
+                position = float(block.get('position', 0))
+                duration = float(block.get('duration', 1))
+                self.move_joint(joint, position, duration)
+                
+            elif block_type == 'wait':
+                duration = float(block.get('duration', 1))
+                time.sleep(duration)
+                
+            elif block_type == 'preset':
+                preset_name = block.get('preset')
+                presets = {
+                    "home": {j: 0.0 for j in self.limits.keys()},
+                    "ready": {"Joint01": 0.0, "Joint02": -0.5, "Joint03": 1.0, "Joint04": 0.0, "Joint05": -0.5, "Joint06": 0.0, "Gripper": 0.0},
+                    "wave": {"Joint01": 0.5, "Joint02": -0.3, "Joint03": 1.2, "Joint04": 0.0, "Joint05": -0.9, "Joint06": 0.0, "Gripper": 0.3}
+                }
+                if preset_name in presets:
+                    duration = float(block.get('duration', 2))
+                    for joint, pos in presets[preset_name].items():
+                        threading.Thread(target=self.move_joint, args=(joint, pos, duration)).start()
+                    time.sleep(duration)
+        
+        self.running = False
+    
+    def setup_routes(self):
+        @self.app.route('/')
+        def index():
+            return render_template_string(VISUAL_PROGRAMMER_HTML)
+        
+        @self.app.route('/api/run', methods=['POST'])
+        def run_program():
+            if self.running:
+                return jsonify({"success": False, "error": "Program already running"})
+            
+            program = request.json.get('program', [])
+            self.execution_thread = threading.Thread(target=self.execute_program, args=(program,))
+            self.execution_thread.start()
+            
+            return jsonify({"success": True})
+        
+        @self.app.route('/api/stop', methods=['POST'])
+        def stop_program():
+            self.running = False
+            return jsonify({"success": True})
+        
+        @self.app.route('/api/status')
+        def status():
+            return jsonify({
+                "running": self.running,
+                "positions": self.positions
+            })
     
     def run(self):
-        self.root.mainloop()
+        print("🎨 Z1 Visual Programmer starting...")
+        print("📱 Open browser: http://localhost:8081")
+        print("🛑 Press Ctrl+C to stop")
+        
+        def ros_spin():
+            rospy.spin()
+        
+        ros_thread = threading.Thread(target=ros_spin)
+        ros_thread.daemon = True
+        ros_thread.start()
+        
+        self.app.run(host='0.0.0.0', port=8081, debug=False)
 
-def main():
-    app = Z1VisualProgrammer()
-    app.run()
+VISUAL_PROGRAMMER_HTML = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Z1 Visual Programmer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; background: #f0f0f0; }
+        .container { display: flex; height: 100vh; }
+        .palette { width: 250px; background: #2c3e50; color: white; padding: 20px; overflow-y: auto; }
+        .workspace { flex: 1; background: white; padding: 20px; overflow-y: auto; }
+        .controls { width: 200px; background: #34495e; color: white; padding: 20px; }
+        
+        .block { margin: 10px 0; padding: 15px; border-radius: 8px; cursor: pointer; user-select: none; }
+        .block:hover { opacity: 0.8; }
+        
+        .move-block { background: #3498db; }
+        .wait-block { background: #e74c3c; }
+        .preset-block { background: #2ecc71; }
+        .repeat-block { background: #9b59b6; }
+        
+        .program-block { margin: 5px 0; padding: 10px; border-radius: 5px; position: relative; }
+        .program-block .remove { position: absolute; top: 5px; right: 5px; background: #e74c3c; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        
+        .input-group { margin: 5px 0; }
+        .input-group label { display: block; font-size: 12px; margin-bottom: 3px; }
+        .input-group select, .input-group input { width: 100%; padding: 3px; border: none; border-radius: 3px; }
+        
+        .btn { padding: 10px 20px; margin: 5px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .btn-run { background: #27ae60; color: white; }
+        .btn-stop { background: #e74c3c; color: white; }
+        .btn-clear { background: #95a5a6; color: white; }
+        
+        .status { margin: 10px 0; padding: 10px; background: #ecf0f1; border-radius: 5px; font-family: monospace; font-size: 12px; }
+        
+        h3 { margin-top: 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Block Palette -->
+        <div class="palette">
+            <h3>🧩 Blocks</h3>
+            
+            <div class="block move-block" onclick="addBlock('move')">
+                📍 Move Joint
+                <div style="font-size: 12px; margin-top: 5px;">Move a joint to position</div>
+            </div>
+            
+            <div class="block wait-block" onclick="addBlock('wait')">
+                ⏱️ Wait
+                <div style="font-size: 12px; margin-top: 5px;">Pause for time</div>
+            </div>
+            
+            <div class="block preset-block" onclick="addBlock('preset')">
+                🎯 Go to Preset
+                <div style="font-size: 12px; margin-top: 5px;">Move to preset position</div>
+            </div>
+            
+            <div class="block repeat-block" onclick="addBlock('repeat')">
+                🔄 Repeat
+                <div style="font-size: 12px; margin-top: 5px;">Repeat actions</div>
+            </div>
+        </div>
+        
+        <!-- Workspace -->
+        <div class="workspace">
+            <h2>🎨 Visual Program</h2>
+            <div id="program" style="min-height: 400px; border: 2px dashed #bdc3c7; border-radius: 10px; padding: 20px;">
+                <div style="text-align: center; color: #7f8c8d; margin-top: 100px;">
+                    Drag blocks here to create your program
+                </div>
+            </div>
+        </div>
+        
+        <!-- Controls -->
+        <div class="controls">
+            <h3>🎮 Controls</h3>
+            
+            <button class="btn btn-run" onclick="runProgram()">▶️ Run</button>
+            <button class="btn btn-stop" onclick="stopProgram()">⏹️ Stop</button>
+            <button class="btn btn-clear" onclick="clearProgram()">🗑️ Clear</button>
+            
+            <div class="status">
+                <h4>Status</h4>
+                <div id="status">Ready</div>
+            </div>
+            
+            <div class="status">
+                <h4>Examples</h4>
+                <button class="btn" onclick="loadExample('wave')" style="width: 100%; margin: 2px 0;">👋 Wave</button>
+                <button class="btn" onclick="loadExample('dance')" style="width: 100%; margin: 2px 0;">💃 Dance</button>
+                <button class="btn" onclick="loadExample('pickup')" style="width: 100%; margin: 2px 0;">📦 Pick Up</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let program = [];
+        let blockId = 0;
+        
+        function addBlock(type) {
+            const block = { id: ++blockId, type: type };
+            
+            if (type === 'move') {
+                block.joint = 'Joint01';
+                block.position = 0;
+                block.duration = 1;
+            } else if (type === 'wait') {
+                block.duration = 1;
+            } else if (type === 'preset') {
+                block.preset = 'home';
+                block.duration = 2;
+            } else if (type === 'repeat') {
+                block.times = 2;
+            }
+            
+            program.push(block);
+            renderProgram();
+        }
+        
+        function removeBlock(id) {
+            program = program.filter(b => b.id !== id);
+            renderProgram();
+        }
+        
+        function updateBlock(id, field, value) {
+            const block = program.find(b => b.id === id);
+            if (block) {
+                block[field] = value;
+            }
+        }
+        
+        function renderProgram() {
+            const container = document.getElementById('program');
+            
+            if (program.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #7f8c8d; margin-top: 100px;">Drag blocks here to create your program</div>';
+                return;
+            }
+            
+            container.innerHTML = program.map(block => {
+                let content = '';
+                
+                if (block.type === 'move') {
+                    content = `
+                        <div class="input-group">
+                            <label>Joint:</label>
+                            <select onchange="updateBlock(${block.id}, 'joint', this.value)">
+                                ${['Joint01', 'Joint02', 'Joint03', 'Joint04', 'Joint05', 'Joint06', 'Gripper'].map(j => 
+                                    `<option value="${j}" ${block.joint === j ? 'selected' : ''}>${j}</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Position:</label>
+                            <input type="number" step="0.1" value="${block.position}" 
+                                   onchange="updateBlock(${block.id}, 'position', this.value)">
+                        </div>
+                        <div class="input-group">
+                            <label>Duration (s):</label>
+                            <input type="number" step="0.1" value="${block.duration}" 
+                                   onchange="updateBlock(${block.id}, 'duration', this.value)">
+                        </div>
+                    `;
+                } else if (block.type === 'wait') {
+                    content = `
+                        <div class="input-group">
+                            <label>Duration (s):</label>
+                            <input type="number" step="0.1" value="${block.duration}" 
+                                   onchange="updateBlock(${block.id}, 'duration', this.value)">
+                        </div>
+                    `;
+                } else if (block.type === 'preset') {
+                    content = `
+                        <div class="input-group">
+                            <label>Preset:</label>
+                            <select onchange="updateBlock(${block.id}, 'preset', this.value)">
+                                ${['home', 'ready', 'wave'].map(p => 
+                                    `<option value="${p}" ${block.preset === p ? 'selected' : ''}>${p}</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Duration (s):</label>
+                            <input type="number" step="0.1" value="${block.duration}" 
+                                   onchange="updateBlock(${block.id}, 'duration', this.value)">
+                        </div>
+                    `;
+                }
+                
+                const blockClass = block.type + '-block';
+                const title = {
+                    'move': '📍 Move Joint',
+                    'wait': '⏱️ Wait',
+                    'preset': '🎯 Go to Preset',
+                    'repeat': '🔄 Repeat'
+                }[block.type];
+                
+                return `
+                    <div class="program-block ${blockClass}">
+                        <button class="remove" onclick="removeBlock(${block.id})">×</button>
+                        <strong>${title}</strong>
+                        ${content}
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function runProgram() {
+            fetch('/api/run', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({program: program})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('status').textContent = 'Running...';
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            });
+        }
+        
+        function stopProgram() {
+            fetch('/api/stop', {method: 'POST'})
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('status').textContent = 'Stopped';
+            });
+        }
+        
+        function clearProgram() {
+            program = [];
+            renderProgram();
+        }
+        
+        function loadExample(example) {
+            if (example === 'wave') {
+                program = [
+                    {id: ++blockId, type: 'preset', preset: 'ready', duration: 2},
+                    {id: ++blockId, type: 'move', joint: 'Joint01', position: 0.5, duration: 1},
+                    {id: ++blockId, type: 'move', joint: 'Joint06', position: 0.5, duration: 0.5},
+                    {id: ++blockId, type: 'move', joint: 'Joint06', position: -0.5, duration: 0.5},
+                    {id: ++blockId, type: 'move', joint: 'Joint06', position: 0.5, duration: 0.5},
+                    {id: ++blockId, type: 'move', joint: 'Joint06', position: 0, duration: 0.5},
+                    {id: ++blockId, type: 'preset', preset: 'home', duration: 2}
+                ];
+            } else if (example === 'dance') {
+                program = [
+                    {id: ++blockId, type: 'preset', preset: 'ready', duration: 1},
+                    {id: ++blockId, type: 'move', joint: 'Joint01', position: 0.8, duration: 1},
+                    {id: ++blockId, type: 'move', joint: 'Joint01', position: -0.8, duration: 1},
+                    {id: ++blockId, type: 'move', joint: 'Joint01', position: 0, duration: 1},
+                    {id: ++blockId, type: 'preset', preset: 'home', duration: 2}
+                ];
+            } else if (example === 'pickup') {
+                program = [
+                    {id: ++blockId, type: 'preset', preset: 'ready', duration: 2},
+                    {id: ++blockId, type: 'move', joint: 'Gripper', position: 0.6, duration: 1},
+                    {id: ++blockId, type: 'move', joint: 'Joint03', position: 1.5, duration: 2},
+                    {id: ++blockId, type: 'move', joint: 'Gripper', position: 0, duration: 1},
+                    {id: ++blockId, type: 'wait', duration: 1},
+                    {id: ++blockId, type: 'preset', preset: 'ready', duration: 2},
+                    {id: ++blockId, type: 'preset', preset: 'home', duration: 2}
+                ];
+            }
+            renderProgram();
+        }
+        
+        // Update status periodically
+        setInterval(() => {
+            fetch('/api/status')
+            .then(response => response.json())
+            .then(data => {
+                if (!data.running && document.getElementById('status').textContent === 'Running...') {
+                    document.getElementById('status').textContent = 'Ready';
+                }
+            });
+        }, 1000);
+        
+        // Initialize
+        renderProgram();
+    </script>
+</body>
+</html>
+'''
 
 if __name__ == "__main__":
-    main()
+    try:
+        programmer = Z1VisualProgrammer()
+        programmer.run()
+    except KeyboardInterrupt:
+        print("\n🛑 Visual Programmer stopped")
+    except Exception as e:
+        print(f"❌ Error: {e}")
