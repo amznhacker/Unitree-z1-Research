@@ -22,6 +22,8 @@ install(PROGRAMS
   scripts/z1_controller_ros2.py
   scripts/z1_keyboard_ros2.py
   scripts/z1_web_ros2.py
+  scripts/z1_ai_assistant_ros2.py
+  scripts/z1_computer_vision_ros2.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

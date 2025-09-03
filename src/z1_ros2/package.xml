@@ -18,9 +18,18 @@
   <depend>trajectory_msgs</depend>
   <depend>control_msgs</depend>
   <depend>gazebo_ros</depend>
+  <depend>gazebo_ros2_control</depend>
   <depend>joint_state_publisher</depend>
   <depend>robot_state_publisher</depend>
   <depend>xacro</depend>
+  <depend>ros2_control</depend>
+  <depend>ros2_controllers</depend>
+  <depend>joint_trajectory_controller</depend>
+  <depend>position_controllers</depend>
+  <depend>velocity_controllers</depend>
+  <depend>cv_bridge</depend>
+  <depend>image_transport</depend>
+  <depend>rosbridge_server</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
