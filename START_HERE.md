@@ -10,10 +10,11 @@ chmod +x setup_and_run.sh
 
 ## Daily Use
 ```bash
-./quick_start.sh keyboard    # Keyboard control
-./quick_start.sh web         # Web browser GUI
-./quick_start.sh visual      # Visual programming
-./quick_start.sh demo        # Pick & place demo
+./quick_start.sh keyboard    # Manual control
+./quick_start.sh web         # Browser GUI
+./quick_start.sh visual      # Visual programming  
+./quick_start.sh bartender   # Cocktail demo
+./quick_start.sh demo        # Pick & place
 ```
 
 ## Controls
@@ -24,7 +25,11 @@ chmod +x setup_and_run.sh
 
 ## Problems?
 ```bash
-pkill -f gazebo && ./quick_start.sh
+./fix_gazebo.sh && ./quick_start.sh
 ```
+
+## Web Interfaces
+- **Web Control:** http://localhost:8080
+- **Visual Programming:** http://localhost:8081
 
 That's it! 🎯

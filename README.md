@@ -15,10 +15,12 @@ chmod +x setup_and_run.sh
 
 ### One Command (Recommended)
 ```bash
-./quick_start.sh keyboard    # Keyboard control
+./quick_start.sh keyboard    # Manual control
+./quick_start.sh web         # Browser control
+./quick_start.sh visual      # Visual programming
 ./quick_start.sh demo        # Pick & place demo
-./quick_start.sh bartender   # Cocktail demo
-./quick_start.sh draw        # Drawing demo
+./quick_start.sh bartender   # Cocktail mixing
+./quick_start.sh draw        # Drawing shapes
 ./quick_start.sh real        # Real robot
 ```
 
@@ -43,24 +45,24 @@ rosrun z1_tools z1_simple_control.py
 - **Space/X** = Gripper open/close
 - **ESC** = Stop
 
-## 🔧 Troubleshooting
+## 🔧 Problems?
 
 ```bash
-# Gazebo issues
-pkill -f gazebo && ./quick_start.sh
+# If Gazebo won't start or robot won't spawn
+./fix_gazebo.sh && ./quick_start.sh
 
-# Build issues  
+# If build errors
 cd ~/catkin_ws && catkin_make clean && catkin_make
 
-# Permission issues
+# If permission errors
 sudo chown -R $USER:$USER ~/catkin_ws
 ```
 
 ## 📁 Available Scripts
 
-**Control:** keyboard, simple_control, xbox_control  
-**Demos:** demo_simple, pick_place, drawing  
-**Entertainment:** bartender, chess_player, magician, musician, wave  
+**Control:** keyboard, web_gui, visual_programmer  
+**Demos:** demo_simple, pick_place, drawing, bartender  
+**Entertainment:** chess_player, magician, musician, wave  
 **Utilities:** emergency_stop, safe_limits, motorcmd_sweep  
 
 See [TWO_TERMINAL_USAGE.md](TWO_TERMINAL_USAGE.md) for complete list.
