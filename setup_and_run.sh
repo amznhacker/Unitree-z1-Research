@@ -98,10 +98,10 @@ setup_workspace() {
     # Create workspace directory with proper permissions
     mkdir -p "$WORKSPACE_DIR/src"
     
-    # Copy source files
+    # Copy source files (exclude CMakeLists.txt)
     if [ -d "$SCRIPT_DIR/src" ]; then
         print_status "Copying source files..."
-        cp -r "$SCRIPT_DIR/src"/* "$WORKSPACE_DIR/src/"
+        rsync -av --exclude='CMakeLists.txt' "$SCRIPT_DIR/src/" "$WORKSPACE_DIR/src/"
     fi
     
     # Initialize catkin workspace properly
