@@ -103,7 +103,7 @@ setup_workspace() {
     
     # Fix CMakeLists.txt for catkin
     cd "$WORKSPACE_DIR"
-    rm -f src/CMakeLists.txt
+    sudo rm -f src/CMakeLists.txt
     ln -s /opt/ros/noetic/share/catkin/cmake/toplevel.cmake src/CMakeLists.txt
     
     cd "$WORKSPACE_DIR"
