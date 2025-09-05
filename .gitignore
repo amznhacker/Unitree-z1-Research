@@ -1,43 +1,37 @@
-# ROS build artifacts
-devel/
+# Build directories
 build/
+devel/
 install/
-logs/
+log/
 
-# Catkin generated files
-.catkin_tools/
-.catkin_workspace
+# Compiled files
+*.pyc
+__pycache__/
+*.so
+*.o
 
 # IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
 
 # OS files
 .DS_Store
 Thumbs.db
-*.tmp
+
+# ROS
+*.bag
+*.orig
+
+# Gazebo
+.gazebo/
 
 # Python
-__pycache__/
-*.pyc
-*.pyo
 *.egg-info/
+dist/
 
-# C++
-*.o
-*.so
-*.a
-
-# Z1 SDK build artifacts
-src/z1_sdk/build/
-src/z1_sdk/lib/*.so
-
-# Backup files
-*.bak
-*.backup
-
-# Log files
+# Temporary files
+*~
+*.tmp
 *.log

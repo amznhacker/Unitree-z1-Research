@@ -9,7 +9,7 @@ Connect Xbox controller via USB or Bluetooth before running
 import rospy
 import math
 from sensor_msgs.msg import Joy
-from unitree_legged_msgs.msg import MotorCmd
+from std_msgs.msg import Float64
 
 class Z1XboxControl:
     def __init__(self):
@@ -46,7 +46,7 @@ class Z1XboxControl:
         
         for joint, controller in controller_map.items():
             topic = f"/z1_gazebo/{controller}/command"
-            self.pubs[joint] = rospy.Publisher(topic, MotorCmd, queue_size=1)
+            self.pubs[joint] = rospy.Publisher(topic, Float64, queue_size=1)
         
         # Subscribe to joy messages
         rospy.Subscriber("/joy", Joy, self.joy_callback)
@@ -69,14 +69,9 @@ class Z1XboxControl:
         new_pos = self.positions[joint] + delta
         self.positions[joint] = self.clamp(joint, new_pos)
         
-        # Create MotorCmd message
-        msg = MotorCmd()
-        msg.mode = 10  # Position control mode
-        msg.q = float(self.positions[joint])
-        msg.dq = 0.0
-        msg.tau = 0.0
-        msg.Kp = 35.0
-        msg.Kd = 1.5
+        # Create Float64 message for Gazebo controllers
+        msg = Float64()
+        msg.data = float(self.positions[joint])
         
         self.pubs[joint].publish(msg)
     
@@ -85,13 +80,8 @@ class Z1XboxControl:
         rospy.logwarn("🛑 Emergency stop - returning to home position")
         for joint in self.positions.keys():
             self.positions[joint] = 0.0
-            msg = MotorCmd()
-            msg.mode = 10
-            msg.q = 0.0
-            msg.dq = 0.0
-            msg.tau = 0.0
-            msg.Kp = 35.0
-            msg.Kd = 1.5
+            msg = Float64()
+            msg.data = 0.0
             self.pubs[joint].publish(msg)
     
     def joy_callback(self, msg):
