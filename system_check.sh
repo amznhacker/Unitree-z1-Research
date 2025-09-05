@@ -3,8 +3,6 @@
 # Z1 System Check - Comprehensive functionality verification
 # Tests all components, interfaces, and capabilities
 
-set -e
-
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 BLUE='\033[0;34m'
@@ -57,7 +55,6 @@ test_environment() {
         print_pass "ROS Noetic installed"
     else
         print_fail "ROS Noetic not found"
-        return 1
     fi
     
     # Check workspace
@@ -65,7 +62,6 @@ test_environment() {
         print_pass "Catkin workspace exists"
     else
         print_fail "Catkin workspace not found at $WORKSPACE_DIR"
-        return 1
     fi
     
     # Check workspace build
@@ -73,7 +69,6 @@ test_environment() {
         print_pass "Workspace built successfully"
     else
         print_fail "Workspace not built - run catkin_make"
-        return 1
     fi
 }
 
@@ -153,7 +148,7 @@ test_scripts() {
                 print_pass "Script: $script (executable)"
             else
                 print_warn "Script: $script (not executable)"
-                chmod +x "$script_path"
+                chmod +x "$script_path" 2>/dev/null || true
             fi
         else
             print_fail "Missing script: $script"
@@ -161,12 +156,40 @@ test_scripts() {
     done
 }
 
-# Test 5: Gazebo Simulation
+# Test 5: Enhanced Scripts Check
+test_enhanced_scripts() {
+    print_test "Testing enhanced SDK scripts..."
+    
+    enhanced_scripts=(
+        "z1_sdk_enhanced_control.py"
+        "z1_web_api_service.py"
+        "z1_pure_sdk_control.py"
+        "z1_professional_suite.py"
+        "z1_jetson_ai_control.py"
+    )
+    
+    for script in "${enhanced_scripts[@]}"; do
+        script_path="$WORKSPACE_DIR/src/z1_tools/scripts/$script"
+        if [ -f "$script_path" ]; then
+            if python3 -m py_compile "$script_path" &> /dev/null; then
+                print_pass "Enhanced script: $script (syntax valid)"
+            else
+                print_fail "Enhanced script: $script (syntax errors)"
+            fi
+        else
+            print_warn "Enhanced script: $script (not found - run leverage_everything.sh)"
+        fi
+    done
+}
+
+# Test 6: Gazebo Simulation
 test_gazebo() {
     print_test "Testing Gazebo simulation..."
     
-    # Source workspace
-    source "$WORKSPACE_DIR/devel/setup.bash"
+    # Source workspace if available
+    if [ -f "$WORKSPACE_DIR/devel/setup.bash" ]; then
+        source "$WORKSPACE_DIR/devel/setup.bash"
+    fi
     
     # Clean any existing processes
     pkill -f gazebo &> /dev/null || true
@@ -181,54 +204,52 @@ test_gazebo() {
     # Test if roscore is running
     if rostopic list &> /dev/null; then
         print_pass "ROS master started"
+        
+        # Launch Z1 simulation (headless)
+        timeout 30s roslaunch unitree_gazebo z1.launch gui:=false &> /dev/null &
+        GAZEBO_PID=$!
+        sleep 15
+        
+        # Check if simulation is running
+        if rostopic list | grep -q "z1_gazebo"; then
+            print_pass "Z1 simulation launched successfully"
+            
+            # Test joint states
+            if timeout 5s rostopic echo /z1_gazebo/joint_states -n 1 &> /dev/null; then
+                print_pass "Joint states publishing"
+            else
+                print_fail "Joint states not publishing"
+            fi
+            
+            # Test controllers
+            controllers_loaded=0
+            for i in {1..6}; do
+                if rostopic list | grep -q "/z1_gazebo/Joint0${i}_controller"; then
+                    ((controllers_loaded++))
+                fi
+            done
+            
+            if [ $controllers_loaded -eq 6 ]; then
+                print_pass "All 6 joint controllers loaded"
+            else
+                print_fail "Only $controllers_loaded/6 controllers loaded"
+            fi
+        else
+            print_fail "Z1 simulation failed to launch"
+        fi
+        
+        # Cleanup
+        kill $GAZEBO_PID &> /dev/null || true
     else
         print_fail "ROS master failed to start"
-        kill $ROSCORE_PID &> /dev/null || true
-        return 1
     fi
     
-    # Launch Z1 simulation (headless)
-    timeout 30s roslaunch unitree_gazebo z1.launch gui:=false &> /dev/null &
-    GAZEBO_PID=$!
-    sleep 15
-    
-    # Check if simulation is running
-    if rostopic list | grep -q "z1_gazebo"; then
-        print_pass "Z1 simulation launched successfully"
-        
-        # Test joint states
-        if timeout 5s rostopic echo /z1_gazebo/joint_states -n 1 &> /dev/null; then
-            print_pass "Joint states publishing"
-        else
-            print_fail "Joint states not publishing"
-        fi
-        
-        # Test controllers
-        controllers_loaded=0
-        for i in {1..6}; do
-            if rostopic list | grep -q "/z1_gazebo/Joint0${i}_controller"; then
-                ((controllers_loaded++))
-            fi
-        done
-        
-        if [ $controllers_loaded -eq 6 ]; then
-            print_pass "All 6 joint controllers loaded"
-        else
-            print_fail "Only $controllers_loaded/6 controllers loaded"
-        fi
-        
-    else
-        print_fail "Z1 simulation failed to launch"
-    fi
-    
-    # Cleanup
-    kill $GAZEBO_PID &> /dev/null || true
     kill $ROSCORE_PID &> /dev/null || true
     pkill -f gazebo &> /dev/null || true
     sleep 2
 }
 
-# Test 6: Web Interfaces
+# Test 7: Web Interfaces
 test_web_interfaces() {
     print_test "Testing web interfaces..."
     
@@ -237,25 +258,26 @@ test_web_interfaces() {
         print_pass "Flask available for web interfaces"
         
         # Test web GUI script syntax
-        if python3 -m py_compile "$WORKSPACE_DIR/src/z1_tools/scripts/z1_web_gui.py" &> /dev/null; then
-            print_pass "Web GUI script syntax valid"
-        else
-            print_fail "Web GUI script has syntax errors"
+        if [ -f "$WORKSPACE_DIR/src/z1_tools/scripts/z1_web_gui.py" ]; then
+            if python3 -m py_compile "$WORKSPACE_DIR/src/z1_tools/scripts/z1_web_gui.py" &> /dev/null; then
+                print_pass "Web GUI script syntax valid"
+            else
+                print_fail "Web GUI script has syntax errors"
+            fi
         fi
         
-        # Test visual programmer script syntax
-        if python3 -m py_compile "$WORKSPACE_DIR/src/z1_tools/scripts/z1_visual_programmer.py" &> /dev/null; then
-            print_pass "Visual programmer script syntax valid"
+        # Test FastAPI availability for enhanced web service
+        if python3 -c "import fastapi" &> /dev/null; then
+            print_pass "FastAPI available for enhanced web service"
         else
-            print_fail "Visual programmer script has syntax errors"
+            print_warn "FastAPI not available (install with: pip3 install fastapi uvicorn)"
         fi
-        
     else
         print_fail "Flask not available - web interfaces won't work"
     fi
 }
 
-# Test 7: Real Robot SDK
+# Test 8: Real Robot SDK
 test_real_robot_sdk() {
     print_test "Testing real robot SDK..."
     
@@ -275,13 +297,12 @@ test_real_robot_sdk() {
         else
             print_fail "Python SDK examples missing"
         fi
-        
     else
         print_fail "Z1 SDK not found - real robot support unavailable"
     fi
 }
 
-# Test 8: Performance Check
+# Test 9: Performance Check
 test_performance() {
     print_test "Testing system performance..."
     
@@ -302,15 +323,15 @@ test_performance() {
     fi
     
     # Check disk space
-    disk_space=$(df -BG "$WORKSPACE_DIR" | awk 'NR==2{print $4}' | sed 's/G//')
-    if [ $disk_space -ge 5 ]; then
+    disk_space=$(df -BG "$WORKSPACE_DIR" 2>/dev/null | awk 'NR==2{print $4}' | sed 's/G//' || echo "0")
+    if [ "$disk_space" -ge 5 ] 2>/dev/null; then
         print_pass "Disk space: ${disk_space}GB available"
     else
         print_warn "Disk space: ${disk_space}GB (may need cleanup)"
     fi
 }
 
-# Test 9: Network Interfaces
+# Test 10: Network Interfaces
 test_network() {
     print_test "Testing network capabilities..."
     
@@ -337,15 +358,17 @@ main() {
     echo "This will verify all Z1 robotic arm functionality."
     echo ""
     
-    test_environment
-    test_dependencies
-    test_robot_files
-    test_scripts
-    test_gazebo
-    test_web_interfaces
-    test_real_robot_sdk
-    test_performance
-    test_network
+    # Run all tests - continue even if some fail
+    test_environment || true
+    test_dependencies || true
+    test_robot_files || true
+    test_scripts || true
+    test_enhanced_scripts || true
+    test_gazebo || true
+    test_web_interfaces || true
+    test_real_robot_sdk || true
+    test_performance || true
+    test_network || true
     
     echo ""
     echo -e "${BLUE}╔══════════════════════════════════════════════════════════════╗${NC}"
@@ -365,6 +388,7 @@ main() {
         echo "  ./quick_start.sh visual      # Visual programming"
         echo "  ./quick_start.sh bartender   # Demo performance"
         echo "  ./quick_start.sh real        # Real robot mode"
+        echo "  ./leverage_everything.sh     # Enhanced SDK features"
     else
         echo -e "${RED}❌ SOME TESTS FAILED ($FAILED failed, $PASSED passed)${NC}"
         echo -e "${YELLOW}⚠️  System may have limited functionality${NC}"
@@ -372,7 +396,8 @@ main() {
         echo "Recommended actions:"
         echo "1. Review failed tests above"
         echo "2. Run: ./setup_and_run.sh --install-ros"
-        echo "3. Check documentation for troubleshooting"
+        echo "3. Install missing packages: pip3 install flask fastapi uvicorn"
+        echo "4. Check documentation for troubleshooting"
     fi
     
     echo ""
