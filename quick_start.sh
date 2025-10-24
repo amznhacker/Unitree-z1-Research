@@ -107,6 +107,10 @@ case $CONTROL_METHOD in
         print_status "Keyboard: WASD=move, ZE=elbow, Space=open, X=close, ESC=stop"
         rosrun z1_tools z1_simple_control.py
         ;;
+    mouse|mudra)
+        print_status "Mouse/Mudra Control: Move mouse=base/shoulder, Click=gripper, Scroll=elbow"
+        python3 src/z1_tools/scripts/z1_mouse_control.py
+        ;;
     xbox|x)
         print_status "Starting Xbox controller..."
         # Check if Xbox controller is connected
@@ -221,25 +225,9 @@ case $CONTROL_METHOD in
         print_status "Starting Dance Choreography..."
         rosrun z1_tools z1_dancer.py
         ;;
-    juggler)
-        print_status "Starting Juggling Performance..."
-        rosrun z1_tools z1_juggler.py
-        ;;
     chef)
         print_status "Starting Cooking Demo..."
         rosrun z1_tools z1_chef.py
-        ;;
-    drummer)
-        print_status "Starting Drum Performance..."
-        rosrun z1_tools z1_drummer.py
-        ;;
-    yoga)
-        print_status "Starting Yoga Instructor..."
-        rosrun z1_tools z1_yoga_instructor.py
-        ;;
-    mime)
-        print_status "Starting Mime Artist..."
-        rosrun z1_tools z1_mime_artist.py
         ;;
     check|test)
         print_status "Running system check..."
@@ -250,6 +238,7 @@ case $CONTROL_METHOD in
         echo ""
         echo "🎮 Basic Control:"
         echo "  keyboard  - Keyboard control (WASD keys)"
+        echo "  mouse     - Mouse/Mudra band control"
         echo "  xbox      - Xbox controller support"
         echo "  web       - Control Center (unified interface)"
         echo "  visual    - Visual programming (drag-and-drop)"
@@ -264,11 +253,7 @@ case $CONTROL_METHOD in
         echo "  music     - Musical conducting"
         echo "  painter   - Artistic painting"
         echo "  dancer    - Dance choreography"
-        echo "  juggler   - Juggling performance"
         echo "  chef      - Cooking demonstration"
-        echo "  drummer   - Drum performance"
-        echo "  yoga      - Yoga instruction"
-        echo "  mime      - Mime artist performance"
         echo ""
         echo "🚀 Enhanced Features:"
         echo "  enhanced  - Full SDK integration"

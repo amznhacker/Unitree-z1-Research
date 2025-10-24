@@ -32,6 +32,7 @@ chmod +x setup_and_run.sh
 ### **Direct Control Options** 🎯
 ```bash
 ./quick_start.sh keyboard    # Direct keyboard control (WASD keys)
+./quick_start.sh mouse       # Mouse/Mudra band control
 ./quick_start.sh xbox        # Xbox controller support
 ./quick_start.sh gui         # Enhanced web GUI (direct)
 ./quick_start.sh visual      # Visual programmer (direct)
@@ -57,6 +58,7 @@ chmod +x setup_and_run.sh
 
 ### **Control Methods**
 - **Keyboard Control** - WASD + hotkeys for all joints
+- **Mouse Control** - Mouse/Mudra band with click and scroll
 - **Xbox Controller** - Gamepad support for intuitive control
 - **Web Interface** - Browser-based control panel
 - **API Control** - HTTP REST API for remote operation
@@ -89,6 +91,15 @@ chmod +x setup_and_run.sh
 | **R/F** | Forearm Roll | **Q** | Quit Program |
 | **T/G** | Wrist Pitch | **H** | Show Help |
 | **Y/H** | Wrist Roll | | |
+
+### Mouse/Mudra Control
+| Input | Action |
+|-------|---------|
+| **Mouse X/Y** | Base rotation & shoulder movement |
+| **Left Click** | Open gripper |
+| **Right Click** | Close gripper |
+| **Scroll Wheel** | Elbow control |
+| **ESC Key** | Emergency stop |
 
 ### Xbox Controller
 - **Left Stick** - Base rotation & shoulder
@@ -135,6 +146,7 @@ Unitree-z1-Research/
 ├── 🎮 Control Applications
 │   ├── src/z1_tools/scripts/
 │   │   ├── z1_simple_control.py   # Keyboard control
+│   │   ├── z1_mouse_control.py    # Mouse/Mudra control
 │   │   ├── z1_web_gui.py          # Browser interface
 │   │   ├── z1_xbox_control.py     # Gamepad support
 │   │   └── z1_visual_programmer.py # Drag-and-drop programming
@@ -329,7 +341,7 @@ catkin_make
 ## 🎯 Capabilities Summary
 
 ### **Control Modes**
-- ✅ **Manual Control** - Keyboard, gamepad, web interface
+- ✅ **Manual Control** - Keyboard, mouse/Mudra, gamepad, web interface
 - ✅ **Programmatic Control** - Python scripts, ROS topics
 - ✅ **API Control** - HTTP REST interface
 - ✅ **Voice Control** - AI assistant integration
@@ -403,9 +415,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ./quick_start.sh demo
 ```
 
-**Want to control manually?** Try this:
+**Want to control manually?** Try these:
 ```bash
-./quick_start.sh keyboard
+./quick_start.sh keyboard    # Keyboard control
+./quick_start.sh mouse       # Mouse/Mudra control
 ```
 
 **Ready for advanced features?** Go with:
