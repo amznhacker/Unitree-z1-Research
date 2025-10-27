@@ -26,19 +26,19 @@ class Z1MouseControl:
         
         # Joint limits (from Z1 SDK documentation)
         self.limits = {
-            0: (-1.57, 1.57),    # Joint 0: Base ±90°
-            1: (-1.22, 1.22),    # Joint 1: Shoulder ±70°
-            2: (-0.26, 2.27),    # Joint 2: Elbow -15° to 130°
-            3: (-1.57, 1.57),    # Joint 3: Forearm ±90°
-            4: (-1.04, 1.04),    # Joint 4: Wrist pitch ±60°
-            5: (-1.57, 1.57),    # Joint 5: Wrist roll ±90°
-            6: (0.0, 0.85)       # Gripper 0-85%
+            0: (-1.2, 1.2),      # Joint 0: Base ±69°
+            1: (-1.0, 1.0),      # Joint 1: Shoulder ±57°
+            2: (0.0, 2.4),       # Joint 2: Elbow 0° to 137°
+            3: (-1.2, 1.2),      # Joint 3: Forearm ±69°
+            4: (-1.0, 1.0),      # Joint 4: Wrist pitch ±57°
+            5: (-1.2, 1.2),      # Joint 5: Wrist roll ±69°
+            6: (-0.6, 0.6)       # Gripper: -0.6 (closed) to 0.6 (open)
         }
         self.positions = {i: 0.0 for i in range(7)}
         
         # Control settings
         self.sensitivity = 0.002
-        self.click_step = 0.15
+        self.click_step = 0.2
         self.running = True
         
         # Control modes - joint pairs
@@ -79,8 +79,9 @@ class Z1MouseControl:
     
     def stop_all(self):
         rospy.logwarn("EMERGENCY STOP - Returning to neutral")
-        for joint_id in range(7):
+        for joint_id in range(6):  # Arm joints to neutral
             self.set_joint(joint_id, 0.0)
+        self.set_joint(6, -0.6)  # Close gripper for safety
     
     def get_current_joints(self):
         """Get current control joints based on mode"""
@@ -114,8 +115,12 @@ class Z1MouseControl:
         y_pos = 70
         for joint_id, pos in self.positions.items():
             color = (0, 255, 0) if joint_id in joints else (150, 150, 150)
-            joint_name = f"Joint{joint_id}" if joint_id < 6 else "Gripper"
-            text = small_font.render(f"{joint_name}: {pos:.3f}rad", True, color)
+            if joint_id < 6:
+                joint_name = f"Joint{joint_id}"
+                text = small_font.render(f"{joint_name}: {pos:.3f}rad", True, color)
+            else:
+                status = "OPEN" if pos > 0.1 else "CLOSED" if pos < -0.1 else "NEUTRAL"
+                text = small_font.render(f"Gripper: {pos:.3f} ({status})", True, color)
             self.screen.blit(text, (10, y_pos))
             y_pos += 20
         
@@ -155,11 +160,13 @@ class Z1MouseControl:
                         self.running = False
                     elif event.type == pygame.MOUSEBUTTONDOWN:
                         if event.button == 1:  # Left click - open gripper
-                            new_pos = min(0.85, self.positions[6] + self.click_step)
+                            new_pos = min(0.6, self.positions[6] + self.click_step)
                             self.set_joint(6, new_pos)
+                            print(f"Opening gripper to {new_pos:.2f}")
                         elif event.button == 3:  # Right click - close gripper
-                            new_pos = max(0.0, self.positions[6] - self.click_step)
+                            new_pos = max(-0.6, self.positions[6] - self.click_step)
                             self.set_joint(6, new_pos)
+                            print(f"Closing gripper to {new_pos:.2f}")
                     elif event.type == pygame.MOUSEWHEEL:
                         # Scroll switches control mode
                         if event.y != 0:
