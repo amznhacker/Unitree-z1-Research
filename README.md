@@ -95,11 +95,16 @@ chmod +x setup_and_run.sh
 ### Mouse/Mudra Control
 | Input | Action |
 |-------|---------|
-| **Mouse X/Y** | Base rotation & shoulder movement |
+| **Scroll Wheel** | Switch control modes (3 modes) |
+| **Mouse X/Y** | Control active joint pair |
 | **Left Click** | Open gripper |
 | **Right Click** | Close gripper |
-| **Scroll Wheel** | Elbow control |
 | **ESC Key** | Emergency stop |
+
+**Control Modes:**
+- Mode 1: Base & Shoulder (Joint01/02)
+- Mode 2: Elbow & Forearm (Joint03/04)  
+- Mode 3: Wrist Pitch & Roll (Joint05/06)
 
 ### Xbox Controller
 - **Left Stick** - Base rotation & shoulder
