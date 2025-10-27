@@ -26,13 +26,13 @@ class Z1MouseControl:
         
         # Joint limits (from Z1 SDK documentation)
         self.limits = {
-            0: (-1.2, 1.2),      # Joint 0: Base ±69°
-            1: (-1.0, 1.0),      # Joint 1: Shoulder ±57°
-            2: (0.0, 2.4),       # Joint 2: Elbow 0° to 137°
-            3: (-1.2, 1.2),      # Joint 3: Forearm ±69°
-            4: (-1.0, 1.0),      # Joint 4: Wrist pitch ±57°
-            5: (-1.2, 1.2),      # Joint 5: Wrist roll ±69°
-            6: (-0.6, 0.6)       # Gripper: -0.6 (closed) to 0.6 (open)
+            0: (-2.62, 2.62),    # Joint 1: Base ±150°
+            1: (0.0, 2.97),      # Joint 2: Shoulder 0° to 170°
+            2: (-2.88, 0.0),     # Joint 3: Elbow -165° to 0°
+            3: (-1.52, 1.52),    # Joint 4: Forearm ±87°
+            4: (-1.34, 1.34),    # Joint 5: Wrist pitch ±77°
+            5: (-2.79, 2.79),    # Joint 6: Wrist roll ±160°
+            6: (-1.57, 0.0)      # Gripper: -90° (closed) to 0° (open)
         }
         self.positions = {i: 0.0 for i in range(7)}
         
@@ -48,6 +48,10 @@ class Z1MouseControl:
             [4, 5]   # Wrist pitch & roll
         ]
         self.mode_index = 0
+        
+        # Key states for modifiers
+        self.shift_pressed = False
+        self.ctrl_pressed = False
         
         # Publishers for Z1 joints
         self.pubs = {}
@@ -81,7 +85,7 @@ class Z1MouseControl:
         rospy.logwarn("EMERGENCY STOP - Returning to neutral")
         for joint_id in range(6):  # Arm joints to neutral
             self.set_joint(joint_id, 0.0)
-        self.set_joint(6, -0.6)  # Close gripper for safety
+        self.set_joint(6, -1.57)  # Close gripper for safety
     
     def get_current_joints(self):
         """Get current control joints based on mode"""
@@ -119,17 +123,19 @@ class Z1MouseControl:
                 joint_name = f"Joint{joint_id}"
                 text = small_font.render(f"{joint_name}: {pos:.3f}rad", True, color)
             else:
-                status = "OPEN" if pos > 0.1 else "CLOSED" if pos < -0.1 else "NEUTRAL"
+                status = "OPEN" if pos > -0.3 else "CLOSED" if pos < -1.2 else "NEUTRAL"
                 text = small_font.render(f"Gripper: {pos:.3f} ({status})", True, color)
             self.screen.blit(text, (10, y_pos))
             y_pos += 20
         
         # Controls help
-        help_y = 280
+        help_y = 260
         help_texts = [
             "Scroll: Switch control mode",
             "Left Click: Open gripper", 
             "Right Click: Close gripper",
+            "Shift: Fine control (30%)",
+            "Ctrl: Fast control (300%)",
             "ESC: Emergency stop"
         ]
         for text in help_texts:
@@ -144,6 +150,8 @@ class Z1MouseControl:
         print("  Mouse X/Y: Control active joint pair")
         print("  Left Click: Open gripper")
         print("  Right Click: Close gripper")
+        print("  Shift: Fine control (30% speed)")
+        print("  Ctrl: Fast control (300% speed)")
         print("  ESC: Emergency stop")
         
         clock = pygame.time.Clock()
@@ -158,13 +166,23 @@ class Z1MouseControl:
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                         self.running = False
+                    elif event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT:
+                            self.shift_pressed = True
+                        elif event.key == pygame.K_LCTRL or event.key == pygame.K_RCTRL:
+                            self.ctrl_pressed = True
+                    elif event.type == pygame.KEYUP:
+                        if event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT:
+                            self.shift_pressed = False
+                        elif event.key == pygame.K_LCTRL or event.key == pygame.K_RCTRL:
+                            self.ctrl_pressed = False
                     elif event.type == pygame.MOUSEBUTTONDOWN:
                         if event.button == 1:  # Left click - open gripper
-                            new_pos = min(0.6, self.positions[6] + self.click_step)
+                            new_pos = min(0.0, self.positions[6] + self.click_step)
                             self.set_joint(6, new_pos)
                             print(f"Opening gripper to {new_pos:.2f}")
                         elif event.button == 3:  # Right click - close gripper
-                            new_pos = max(-0.6, self.positions[6] - self.click_step)
+                            new_pos = max(-1.57, self.positions[6] - self.click_step)
                             self.set_joint(6, new_pos)
                             print(f"Closing gripper to {new_pos:.2f}")
                     elif event.type == pygame.MOUSEWHEEL:
@@ -178,6 +196,14 @@ class Z1MouseControl:
                 # Calculate deltas from center
                 delta_x = (mouse_x - center_x) * self.sensitivity
                 delta_y = (center_y - mouse_y) * self.sensitivity
+                
+                # Modify sensitivity based on key modifiers
+                if self.shift_pressed:
+                    delta_x *= 0.3  # Fine control
+                    delta_y *= 0.3
+                elif self.ctrl_pressed:
+                    delta_x *= 3.0  # Fast control
+                    delta_y *= 3.0
                 
                 # Apply to current joint pair
                 joints = self.get_current_joints()
