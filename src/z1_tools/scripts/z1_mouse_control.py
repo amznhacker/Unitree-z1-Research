@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
 """
-Z1 Enhanced Mouse Control - Full 6-DOF + gripper control
-Mouse X/Y + modifiers = All joints, Clicks = Gripper, Scroll = Mode switching
+Z1 Enhanced Mouse Control - Full 6-DOF + gripper control using proper Z1 SDK interface
 """
 
 import rospy
 import sys
+import math
 from unitree_legged_msgs.msg import MotorCmd
 
 try:
@@ -22,75 +22,76 @@ class Z1MouseControl:
         # Initialize pygame
         pygame.init()
         self.screen = pygame.display.set_mode((600, 400))
-        pygame.display.set_caption("Z1 Full Mouse Control - Hold keys for different joints")
+        pygame.display.set_caption("Z1 Full Mouse Control")
         
-        # Joint limits and positions
+        # Joint limits (from Z1 SDK documentation)
         self.limits = {
-            "Joint01": (-1.2, 1.2),   # Base ±69°
-            "Joint02": (-1.0, 1.0),   # Shoulder ±57°
-            "Joint03": (0.0, 2.4),    # Elbow 0° to 137°
-            "Joint04": (-1.2, 1.2),   # Forearm ±69°
-            "Joint05": (-1.0, 1.0),   # Wrist pitch ±57°
-            "Joint06": (-1.2, 1.2),   # Wrist roll ±69°
-            "Gripper": (0.0, 0.6)     # Gripper 0-60%
+            0: (-1.57, 1.57),    # Joint 0: Base ±90°
+            1: (-1.22, 1.22),    # Joint 1: Shoulder ±70°
+            2: (-0.26, 2.27),    # Joint 2: Elbow -15° to 130°
+            3: (-1.57, 1.57),    # Joint 3: Forearm ±90°
+            4: (-1.04, 1.04),    # Joint 4: Wrist pitch ±60°
+            5: (-1.57, 1.57),    # Joint 5: Wrist roll ±90°
+            6: (0.0, 0.85)       # Gripper 0-85%
         }
-        self.positions = {j: 0.0 for j in self.limits.keys()}
+        self.positions = {i: 0.0 for i in range(7)}
         
         # Control settings
-        self.sensitivity = 0.003
-        self.click_step = 0.1
+        self.sensitivity = 0.002
+        self.click_step = 0.15
         self.running = True
-        self.control_mode = "base_shoulder"  # Current control mode
         
-        # Control modes
-        self.modes = {
-            "base_shoulder": ["Joint01", "Joint02"],
-            "elbow_forearm": ["Joint03", "Joint04"],
-            "wrist_pitch_roll": ["Joint05", "Joint06"]
-        }
+        # Control modes - joint pairs
+        self.modes = [
+            [0, 1],  # Base & Shoulder
+            [2, 3],  # Elbow & Forearm
+            [4, 5]   # Wrist pitch & roll
+        ]
         self.mode_index = 0
         
-        # Publishers
+        # Publishers for Z1 joints
         self.pubs = {}
-        for joint in self.limits.keys():
-            controller = f"{joint}_controller"
-            topic = f"/z1_gazebo/{controller}/command"
-            self.pubs[joint] = rospy.Publisher(topic, MotorCmd, queue_size=1)
+        for i in range(6):  # 6 arm joints
+            topic = f"/z1_gazebo/Joint0{i+1}_controller/command"
+            self.pubs[i] = rospy.Publisher(topic, MotorCmd, queue_size=1)
+        
+        # Gripper publisher
+        self.pubs[6] = rospy.Publisher("/z1_gazebo/Gripper_controller/command", MotorCmd, queue_size=1)
         
         rospy.loginfo("Z1 Enhanced Mouse Control initialized")
         
-    def clamp(self, joint, pos):
-        min_pos, max_pos = self.limits[joint]
+    def clamp(self, joint_id, pos):
+        min_pos, max_pos = self.limits[joint_id]
         return max(min_pos, min(max_pos, pos))
     
-    def set_joint(self, joint, pos):
-        self.positions[joint] = self.clamp(joint, pos)
+    def set_joint(self, joint_id, pos):
+        self.positions[joint_id] = self.clamp(joint_id, pos)
         
         msg = MotorCmd()
-        msg.mode = 10
-        msg.q = float(self.positions[joint])
+        msg.mode = 10  # Position control mode
+        msg.q = float(self.positions[joint_id])
         msg.dq = 0.0
         msg.tau = 0.0
         msg.Kp = 35.0
         msg.Kd = 1.5
         
-        self.pubs[joint].publish(msg)
+        self.pubs[joint_id].publish(msg)
     
     def stop_all(self):
-        rospy.logwarn("STOPPING - Returning to neutral")
-        for joint in self.positions.keys():
-            self.set_joint(joint, 0.0)
+        rospy.logwarn("EMERGENCY STOP - Returning to neutral")
+        for joint_id in range(7):
+            self.set_joint(joint_id, 0.0)
     
     def get_current_joints(self):
         """Get current control joints based on mode"""
-        return self.modes[list(self.modes.keys())[self.mode_index]]
+        return self.modes[self.mode_index]
     
     def switch_mode(self):
         """Switch to next control mode"""
         self.mode_index = (self.mode_index + 1) % len(self.modes)
-        mode_name = list(self.modes.keys())[self.mode_index]
-        joints = self.modes[mode_name]
-        print(f"\nMode: {mode_name.replace('_', ' ').title()} - Controlling {joints[0]} (X) & {joints[1]} (Y)")
+        joints = self.modes[self.mode_index]
+        mode_names = ["Base & Shoulder", "Elbow & Forearm", "Wrist Pitch & Roll"]
+        print(f"\nMode: {mode_names[self.mode_index]} - Controlling Joint{joints[0]} (X) & Joint{joints[1]} (Y)")
     
     def draw_interface(self):
         """Draw control interface"""
@@ -101,24 +102,25 @@ class Z1MouseControl:
         small_font = pygame.font.Font(None, 18)
         
         # Current mode
-        mode_name = list(self.modes.keys())[self.mode_index]
+        mode_names = ["Base & Shoulder", "Elbow & Forearm", "Wrist Pitch & Roll"]
         joints = self.get_current_joints()
-        mode_text = font.render(f"Mode: {mode_name.replace('_', ' ').title()}", True, (255, 255, 255))
+        mode_text = font.render(f"Mode: {mode_names[self.mode_index]}", True, (255, 255, 255))
         self.screen.blit(mode_text, (10, 10))
         
-        control_text = small_font.render(f"Mouse X/Y controls {joints[0]} & {joints[1]}", True, (200, 200, 200))
+        control_text = small_font.render(f"Mouse X/Y controls Joint{joints[0]} & Joint{joints[1]}", True, (200, 200, 200))
         self.screen.blit(control_text, (10, 35))
         
         # Joint positions
         y_pos = 70
-        for joint, pos in self.positions.items():
-            color = (0, 255, 0) if joint in joints else (150, 150, 150)
-            text = small_font.render(f"{joint}: {pos:.3f}", True, color)
+        for joint_id, pos in self.positions.items():
+            color = (0, 255, 0) if joint_id in joints else (150, 150, 150)
+            joint_name = f"Joint{joint_id}" if joint_id < 6 else "Gripper"
+            text = small_font.render(f"{joint_name}: {pos:.3f}rad", True, color)
             self.screen.blit(text, (10, y_pos))
             y_pos += 20
         
         # Controls help
-        help_y = 250
+        help_y = 280
         help_texts = [
             "Scroll: Switch control mode",
             "Left Click: Open gripper", 
@@ -153,11 +155,11 @@ class Z1MouseControl:
                         self.running = False
                     elif event.type == pygame.MOUSEBUTTONDOWN:
                         if event.button == 1:  # Left click - open gripper
-                            new_pos = min(0.6, self.positions["Gripper"] + self.click_step)
-                            self.set_joint("Gripper", new_pos)
+                            new_pos = min(0.85, self.positions[6] + self.click_step)
+                            self.set_joint(6, new_pos)
                         elif event.button == 3:  # Right click - close gripper
-                            new_pos = max(0.0, self.positions["Gripper"] - self.click_step)
-                            self.set_joint("Gripper", new_pos)
+                            new_pos = max(0.0, self.positions[6] - self.click_step)
+                            self.set_joint(6, new_pos)
                     elif event.type == pygame.MOUSEWHEEL:
                         # Scroll switches control mode
                         if event.y != 0:
