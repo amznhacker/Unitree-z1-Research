@@ -22,24 +22,26 @@ class Z1MouseControl:
         # Initialize pygame
         pygame.init()
         self.screen = pygame.display.set_mode((600, 400))
-        pygame.display.set_caption("Z1 Full Mouse Control")
+        pygame.display.set_caption("Z1 Safe Mouse Control - SIMULATION ONLY")
         
-        # Joint limits (from Z1 SDK documentation)
+        # SAFE joint limits (conservative for simulation)
         self.limits = {
-            0: (-2.62, 2.62),    # Joint 1: Base ±150°
-            1: (0.0, 2.97),      # Joint 2: Shoulder 0° to 170°
-            2: (-2.88, 0.0),     # Joint 3: Elbow -165° to 0°
-            3: (-1.52, 1.52),    # Joint 4: Forearm ±87°
-            4: (-1.34, 1.34),    # Joint 5: Wrist pitch ±77°
-            5: (-2.79, 2.79),    # Joint 6: Wrist roll ±160°
+            0: (-1.0, 1.0),      # Joint 1: Base ±57° (safe)
+            1: (0.2, 1.5),       # Joint 2: Shoulder 11° to 86° (avoid singularity)
+            2: (-1.5, -0.2),     # Joint 3: Elbow -86° to -11° (safe range)
+            3: (-1.0, 1.0),      # Joint 4: Forearm ±57° (safe)
+            4: (-0.8, 0.8),      # Joint 5: Wrist pitch ±46° (safe)
+            5: (-1.5, 1.5),      # Joint 6: Wrist roll ±86° (safe)
             6: (-1.57, 0.0)      # Gripper: -90° (closed) to 0° (open)
         }
-        self.positions = {i: 0.0 for i in range(7)}
+        # Start in SAFE forward position (avoid singularities)
+        self.positions = {0: 0.0, 1: 0.5, 2: -0.8, 3: 0.0, 4: 0.0, 5: 0.0, 6: -0.5}
         
-        # Control settings
-        self.sensitivity = 0.002
-        self.click_step = 0.2
+        # SAFE control settings
+        self.sensitivity = 0.001  # Reduced for safety
+        self.click_step = 0.1     # Smaller steps
         self.running = True
+        self.emergency_stop = False
         
         # Control modes - joint pairs
         self.modes = [
@@ -82,10 +84,12 @@ class Z1MouseControl:
         self.pubs[joint_id].publish(msg)
     
     def stop_all(self):
-        rospy.logwarn("EMERGENCY STOP - Returning to neutral")
-        for joint_id in range(6):  # Arm joints to neutral
-            self.set_joint(joint_id, 0.0)
-        self.set_joint(6, -1.57)  # Close gripper for safety
+        rospy.logwarn("🛑 EMERGENCY STOP - Moving to SAFE position")
+        # Move to safe forward position (not zero - avoid singularities)
+        safe_positions = {0: 0.0, 1: 0.5, 2: -0.8, 3: 0.0, 4: 0.0, 5: 0.0, 6: -1.57}
+        for joint_id, safe_pos in safe_positions.items():
+            self.set_joint(joint_id, safe_pos)
+        print("Robot moved to SAFE forward position")
     
     def get_current_joints(self):
         """Get current control joints based on mode"""
@@ -129,14 +133,14 @@ class Z1MouseControl:
             y_pos += 20
         
         # Controls help
-        help_y = 260
+        help_y = 240
         help_texts = [
+            "⚠️ SIMULATION ONLY - SAFE LIMITS",
             "Scroll: Switch control mode",
             "Left Click: Open gripper", 
             "Right Click: Close gripper",
-            "Shift: Fine control (30%)",
-            "Ctrl: Fast control (300%)",
-            "ESC: Emergency stop"
+            "Shift: Extra fine control (20%)",
+            "ESC: EMERGENCY STOP"
         ]
         for text in help_texts:
             help_text = small_font.render(text, True, (180, 180, 180))
@@ -144,15 +148,26 @@ class Z1MouseControl:
             help_y += 18
     
     def run(self):
-        print("Z1 Enhanced Mouse Control Started")
-        print("Full 6-DOF + Gripper Control:")
+        print("Z1 SAFE Mouse Control Started - SIMULATION ONLY")
+        print("⚠️  SAFETY WARNINGS:")
+        print("   - This is for SIMULATION ONLY")
+        print("   - Robot starts in SAFE forward position")
+        print("   - Conservative joint limits enforced")
+        print("   - ESC for immediate emergency stop")
+        print("")
+        print("Controls:")
         print("  Scroll Wheel: Switch control modes")
-        print("  Mouse X/Y: Control active joint pair")
+        print("  Mouse X/Y: Control active joint pair (SLOW)")
         print("  Left Click: Open gripper")
         print("  Right Click: Close gripper")
         print("  Shift: Fine control (30% speed)")
-        print("  Ctrl: Fast control (300% speed)")
-        print("  ESC: Emergency stop")
+        print("  ESC: EMERGENCY STOP")
+        
+        # Move to safe starting position
+        print("\nMoving to SAFE starting position...")
+        for joint_id, pos in self.positions.items():
+            self.set_joint(joint_id, pos)
+        rospy.sleep(2.0)
         
         clock = pygame.time.Clock()
         center_x, center_y = 300, 200
@@ -165,6 +180,8 @@ class Z1MouseControl:
             while self.running and not rospy.is_shutdown():
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
+                        print("\n🛑 EMERGENCY STOP ACTIVATED")
+                        self.emergency_stop = True
                         self.running = False
                     elif event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT:
@@ -198,25 +215,29 @@ class Z1MouseControl:
                 dist_y = mouse_y - center_y
                 distance = math.sqrt(dist_x*dist_x + dist_y*dist_y)
                 
-                # Only move if outside dead zone
-                if distance > dead_zone:
+                # Only move if outside dead zone and not in emergency
+                if distance > dead_zone and not self.emergency_stop:
                     # Scale movement based on distance beyond dead zone
                     scale = (distance - dead_zone) / (300 - dead_zone)  # Max distance ~300
-                    delta_x = (dist_x / distance) * scale * self.sensitivity * 2
-                    delta_y = -(dist_y / distance) * scale * self.sensitivity * 2
+                    delta_x = (dist_x / distance) * scale * self.sensitivity
+                    delta_y = -(dist_y / distance) * scale * self.sensitivity
                     
                     # Modify sensitivity based on key modifiers
                     if self.shift_pressed:
-                        delta_x *= 0.3  # Fine control
-                        delta_y *= 0.3
-                    elif self.ctrl_pressed:
-                        delta_x *= 3.0  # Fast control
-                        delta_y *= 3.0
+                        delta_x *= 0.2  # Extra fine control
+                        delta_y *= 0.2
+                    # Remove fast control for safety
                     
-                    # Apply to current joint pair
+                    # Apply to current joint pair with safety checks
                     joints = self.get_current_joints()
-                    self.set_joint(joints[0], delta_x)
-                    self.set_joint(joints[1], delta_y)
+                    new_pos_x = self.positions[joints[0]] + delta_x
+                    new_pos_y = self.positions[joints[1]] + delta_y
+                    
+                    # Extra safety: check if movement is within safe bounds
+                    if (self.limits[joints[0]][0] <= new_pos_x <= self.limits[joints[0]][1] and
+                        self.limits[joints[1]][0] <= new_pos_y <= self.limits[joints[1]][1]):
+                        self.set_joint(joints[0], new_pos_x)
+                        self.set_joint(joints[1], new_pos_y)
                 
                 # Draw interface with dead zone indicator
                 self.draw_interface()
