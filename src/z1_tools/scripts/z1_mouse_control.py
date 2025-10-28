@@ -155,11 +155,11 @@ class Z1MouseControl:
         print("  ESC: Emergency stop")
         
         clock = pygame.time.Clock()
+        center_x, center_y = 300, 200
+        dead_zone = 50  # Dead zone radius where no movement occurs
         
-        # Initialize mode and mouse
+        # Initialize mode
         self.switch_mode()
-        pygame.mouse.set_visible(False)  # Hide cursor
-        pygame.event.set_grab(True)      # Capture mouse
         
         try:
             while self.running and not rospy.is_shutdown():
@@ -189,33 +189,42 @@ class Z1MouseControl:
                         # Scroll switches control mode
                         if event.y != 0:
                             self.switch_mode()
-                    elif event.type == pygame.MOUSEMOTION:
-                        # Use relative mouse movement
-                        delta_x = event.rel[0] * self.sensitivity
-                        delta_y = -event.rel[1] * self.sensitivity  # Invert Y
-                        
-                        # Modify sensitivity based on key modifiers
-                        if self.shift_pressed:
-                            delta_x *= 0.3  # Fine control
-                            delta_y *= 0.3
-                        elif self.ctrl_pressed:
-                            delta_x *= 3.0  # Fast control
-                            delta_y *= 3.0
-                        
-                        # Apply to current joint pair
-                        joints = self.get_current_joints()
-                        new_pos_x = self.positions[joints[0]] + delta_x
-                        new_pos_y = self.positions[joints[1]] + delta_y
-                        self.set_joint(joints[0], new_pos_x)
-                        self.set_joint(joints[1], new_pos_y)
                 
-                # Draw interface
+                # Mouse position control with dead zone
+                mouse_x, mouse_y = pygame.mouse.get_pos()
+                
+                # Calculate distance from center
+                dist_x = mouse_x - center_x
+                dist_y = mouse_y - center_y
+                distance = math.sqrt(dist_x*dist_x + dist_y*dist_y)
+                
+                # Only move if outside dead zone
+                if distance > dead_zone:
+                    # Scale movement based on distance beyond dead zone
+                    scale = (distance - dead_zone) / (300 - dead_zone)  # Max distance ~300
+                    delta_x = (dist_x / distance) * scale * self.sensitivity * 2
+                    delta_y = -(dist_y / distance) * scale * self.sensitivity * 2
+                    
+                    # Modify sensitivity based on key modifiers
+                    if self.shift_pressed:
+                        delta_x *= 0.3  # Fine control
+                        delta_y *= 0.3
+                    elif self.ctrl_pressed:
+                        delta_x *= 3.0  # Fast control
+                        delta_y *= 3.0
+                    
+                    # Apply to current joint pair
+                    joints = self.get_current_joints()
+                    self.set_joint(joints[0], delta_x)
+                    self.set_joint(joints[1], delta_y)
+                
+                # Draw interface with dead zone indicator
                 self.draw_interface()
+                # Draw dead zone circle
+                pygame.draw.circle(self.screen, (100, 100, 100), (center_x, center_y), dead_zone, 2)
                 pygame.display.flip()
                 clock.tick(30)
         finally:
-            pygame.event.set_grab(False)  # Release mouse
-            pygame.mouse.set_visible(True)  # Show cursor
             pygame.quit()
             self.stop_all()
 
