@@ -155,11 +155,11 @@ class Z1MouseControl:
         print("  ESC: Emergency stop")
         
         clock = pygame.time.Clock()
-        center_x, center_y = 300, 200
-        last_mouse_pos = (center_x, center_y)
         
-        # Initialize mode
+        # Initialize mode and mouse
         self.switch_mode()
+        pygame.mouse.set_visible(False)  # Hide cursor
+        pygame.event.set_grab(True)      # Capture mouse
         
         try:
             while self.running and not rospy.is_shutdown():
@@ -189,32 +189,33 @@ class Z1MouseControl:
                         # Scroll switches control mode
                         if event.y != 0:
                             self.switch_mode()
-                
-                # Mouse position control for active joints
-                mouse_x, mouse_y = pygame.mouse.get_pos()
-                
-                # Calculate deltas from center
-                delta_x = (mouse_x - center_x) * self.sensitivity
-                delta_y = (center_y - mouse_y) * self.sensitivity
-                
-                # Modify sensitivity based on key modifiers
-                if self.shift_pressed:
-                    delta_x *= 0.3  # Fine control
-                    delta_y *= 0.3
-                elif self.ctrl_pressed:
-                    delta_x *= 3.0  # Fast control
-                    delta_y *= 3.0
-                
-                # Apply to current joint pair
-                joints = self.get_current_joints()
-                self.set_joint(joints[0], delta_x)  # X controls first joint
-                self.set_joint(joints[1], delta_y)  # Y controls second joint
+                    elif event.type == pygame.MOUSEMOTION:
+                        # Use relative mouse movement
+                        delta_x = event.rel[0] * self.sensitivity
+                        delta_y = -event.rel[1] * self.sensitivity  # Invert Y
+                        
+                        # Modify sensitivity based on key modifiers
+                        if self.shift_pressed:
+                            delta_x *= 0.3  # Fine control
+                            delta_y *= 0.3
+                        elif self.ctrl_pressed:
+                            delta_x *= 3.0  # Fast control
+                            delta_y *= 3.0
+                        
+                        # Apply to current joint pair
+                        joints = self.get_current_joints()
+                        new_pos_x = self.positions[joints[0]] + delta_x
+                        new_pos_y = self.positions[joints[1]] + delta_y
+                        self.set_joint(joints[0], new_pos_x)
+                        self.set_joint(joints[1], new_pos_y)
                 
                 # Draw interface
                 self.draw_interface()
                 pygame.display.flip()
                 clock.tick(30)
         finally:
+            pygame.event.set_grab(False)  # Release mouse
+            pygame.mouse.set_visible(True)  # Show cursor
             pygame.quit()
             self.stop_all()
 
